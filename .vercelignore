@@ -1,0 +1,18 @@
+# Vercel Ignore Files
+.git
+.gitignore
+node_modules
+npm-debug.log
+.DS_Store
+.env.local
+.env.example
+.vercel
+README.md
+ADMIN_PORTAL_GUIDE.md
+DATABASE_DEPLOYMENT.md
+MULTI_DEVICE_LOGIN.md
+SETUP_COMPLETE.md
+supabase-schema-fresh.sql
+supabase-schema.sql
+lipa/
+pay/
