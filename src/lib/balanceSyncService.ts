@@ -55,8 +55,9 @@ class BalanceSyncService {
    */
   async fetchBalance(userId: string): Promise<number | null> {
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const response = await fetch(
-        `http://localhost:5000/api/payments/user-balance/${userId}`
+        `${apiUrl}/api/payments/user-balance/${userId}`
       );
       const data = await response.json();
 

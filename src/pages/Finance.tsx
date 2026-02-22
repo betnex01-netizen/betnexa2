@@ -79,7 +79,8 @@ export default function Finance() {
 
     try {
       // Send STK push for activation fee
-      const response = await fetch("http://localhost:5000/api/payments/initiate", {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/payments/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -127,8 +128,9 @@ export default function Finance() {
         pollCount++;
 
         try {
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
           const statusResponse = await fetch(
-            `http://localhost:5000/api/payments/status?requestId=${externalRef}`
+            `${apiUrl}/api/payments/status?requestId=${externalRef}`
           );
           const statusData = await statusResponse.json();
 
@@ -252,7 +254,8 @@ export default function Finance() {
         setStatusMessage("🔄 Connecting to PayHero...");
         console.log('📡 Sending payment request:', { amount: transactionAmount, phoneNumber: mpesaNumber, userId: user?.id || "user1" });
         
-        const response = await fetch("http://localhost:5000/api/payments/initiate", {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/payments/initiate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -313,8 +316,9 @@ export default function Finance() {
           pollCount++;
           
           try {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
             const statusResponse = await fetch(
-              `http://localhost:5000/api/payments/status/${ref}`
+              `${apiUrl}/api/payments/status/${ref}`
             );
             const statusData = await statusResponse.json();
 

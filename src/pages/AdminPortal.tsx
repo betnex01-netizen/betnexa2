@@ -115,7 +115,8 @@ const AdminPortal = () => {
       }
 
       // Call backend to delete user
-      const response = await fetch(`http://localhost:5000/api/payments/admin/users/${userId}`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/payments/admin/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -328,7 +329,8 @@ const AdminPortal = () => {
   const fetchFailedPayments = async () => {
     setLoadingPayments(true);
     try {
-      const response = await fetch("http://localhost:5000/api/payments/admin/failed");
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/payments/admin/failed`);
       const data = await response.json();
       if (data.success) {
         setFailedPayments(data.payments || []);
@@ -346,8 +348,9 @@ const AdminPortal = () => {
       setResolvingPayment(externalReference);
       const data = resolutionData[externalReference] || {};
 
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
       const response = await fetch(
-        `http://localhost:5000/api/payments/admin/resolve/${externalReference}`,
+        `${apiUrl}/api/payments/admin/resolve/${externalReference}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
