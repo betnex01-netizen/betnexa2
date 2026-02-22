@@ -4,11 +4,30 @@
 
 -- ==================== ENUMS ====================
 
-CREATE TYPE user_role AS ENUM ('user', 'admin');
-CREATE TYPE game_status AS ENUM ('upcoming', 'live', 'finished', 'cancelled');
-CREATE TYPE bet_status AS ENUM ('Open', 'Won', 'Lost', 'Void', 'Closed');
-CREATE TYPE transaction_status AS ENUM ('pending', 'completed', 'failed', 'cancelled');
-CREATE TYPE transaction_type AS ENUM ('deposit', 'withdrawal', 'bet_placement', 'bet_payout', 'admin_adjustment');
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('user', 'admin');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE game_status AS ENUM ('upcoming', 'live', 'finished', 'cancelled');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE bet_status AS ENUM ('Open', 'Won', 'Lost', 'Void', 'Closed');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE transaction_status AS ENUM ('pending', 'completed', 'failed', 'cancelled');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE transaction_type AS ENUM ('deposit', 'withdrawal', 'bet_placement', 'bet_payout', 'admin_adjustment');
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 -- ==================== USERS TABLE ====================
 CREATE TABLE IF NOT EXISTS users (
@@ -215,35 +234,85 @@ CREATE TABLE IF NOT EXISTS announcements (
 
 -- ==================== INDEXES ====================
 
--- Users
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_phone ON users(phone_number);
-CREATE INDEX idx_users_is_admin ON users(is_admin);
-CREATE INDEX idx_users_status ON users(status);
-CREATE INDEX idx_users_created_at ON users(created_at);
+DO $$ BEGIN
+  CREATE INDEX idx_users_username ON users(username);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- Games
-CREATE INDEX idx_games_status ON games(status);
-CREATE INDEX idx_games_league ON games(league);
-CREATE INDEX idx_games_created_at ON games(created_at);
+DO $$ BEGIN
+  CREATE INDEX idx_users_phone ON users(phone_number);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- Markets
-CREATE INDEX idx_markets_game_id ON markets(game_id);
-CREATE INDEX idx_markets_market_type ON markets(market_type);
+DO $$ BEGIN
+  CREATE INDEX idx_users_is_admin ON users(is_admin);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- Bets
-CREATE INDEX idx_bets_user_status ON bets(user_id, status);
-CREATE INDEX idx_bets_created_at ON bets(created_at DESC);
+DO $$ BEGIN
+  CREATE INDEX idx_users_status ON users(status);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- Bet Selections
-CREATE INDEX idx_bet_selections_outcome ON bet_selections(outcome);
+DO $$ BEGIN
+  CREATE INDEX idx_users_created_at ON users(created_at);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- Transactions
-CREATE INDEX idx_transactions_user_type ON transactions(user_id, type);
-CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
+DO $$ BEGIN
+  CREATE INDEX idx_games_status ON games(status);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
--- Payments
-CREATE INDEX idx_payments_completed_at ON payments(completed_at);
+DO $$ BEGIN
+  CREATE INDEX idx_games_league ON games(league);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_games_created_at ON games(created_at);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_markets_game_id ON markets(game_id);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_markets_market_type ON markets(market_type);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_bets_user_status ON bets(user_id, status);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_bets_created_at ON bets(created_at DESC);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_bet_selections_outcome ON bet_selections(outcome);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_transactions_user_type ON transactions(user_id, type);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+DO $$ BEGIN
+  CREATE INDEX idx_payments_completed_at ON payments(completed_at);
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
 -- ==================== FUNCTIONS ====================
 
@@ -309,8 +378,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ==================== TRIGGERS ====================
+-- ==================== TRIGGER FUNCTIONS ====================
 
+-- Function to update user timestamp
 CREATE OR REPLACE FUNCTION update_user_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -319,8 +389,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_users_update BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_user_timestamp();
-
+-- Function to update game timestamp
 CREATE OR REPLACE FUNCTION update_game_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -329,8 +398,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_games_update BEFORE UPDATE ON games FOR EACH ROW EXECUTE FUNCTION update_game_timestamp();
-
+-- Function to update bet timestamp
 CREATE OR REPLACE FUNCTION update_bet_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -339,21 +407,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_bets_update BEFORE UPDATE ON bets FOR EACH ROW EXECUTE FUNCTION update_bet_timestamp();
-
+-- Function to update transaction completion
 CREATE OR REPLACE FUNCTION update_transaction_completion()
 RETURNS TRIGGER AS $$
 BEGIN
+  NEW.updated_at = NOW();
   IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
     NEW.completed_at = NOW();
   ELSIF NEW.status = 'failed' AND OLD.status != 'failed' THEN
     NEW.failed_at = NOW();
   END IF;
-  NEW.updated_at = NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+-- ==================== TRIGGERS ====================
+
+DROP TRIGGER IF EXISTS trigger_users_update ON users;
+CREATE TRIGGER trigger_users_update BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_user_timestamp();
+
+DROP TRIGGER IF EXISTS trigger_games_update ON games;
+CREATE TRIGGER trigger_games_update BEFORE UPDATE ON games FOR EACH ROW EXECUTE FUNCTION update_game_timestamp();
+
+DROP TRIGGER IF EXISTS trigger_bets_update ON bets;
+CREATE TRIGGER trigger_bets_update BEFORE UPDATE ON bets FOR EACH ROW EXECUTE FUNCTION update_bet_timestamp();
+
+DROP TRIGGER IF EXISTS trigger_transactions_update ON transactions;
 CREATE TRIGGER trigger_transactions_update BEFORE UPDATE ON transactions FOR EACH ROW EXECUTE FUNCTION update_transaction_completion();
 
 -- ==================== INITIAL SETTINGS ====================
@@ -385,12 +464,25 @@ ALTER TABLE admin_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE balance_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "users_select" ON users;
 CREATE POLICY "users_select" ON users FOR SELECT USING (auth.uid()::uuid = id OR (SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
+
+DROP POLICY IF EXISTS "users_update" ON users;
 CREATE POLICY "users_update" ON users FOR UPDATE USING (auth.uid()::uuid = id);
+
+DROP POLICY IF EXISTS "games_select" ON games;
 CREATE POLICY "games_select" ON games FOR SELECT USING (TRUE);
+
+DROP POLICY IF EXISTS "games_update" ON games;
 CREATE POLICY "games_update" ON games FOR UPDATE USING ((SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
+
+DROP POLICY IF EXISTS "bets_select" ON bets;
 CREATE POLICY "bets_select" ON bets FOR SELECT USING (auth.uid()::uuid = user_id OR (SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
+
+DROP POLICY IF EXISTS "transactions_select" ON transactions;
 CREATE POLICY "transactions_select" ON transactions FOR SELECT USING (auth.uid()::uuid = user_id OR (SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
+
+DROP POLICY IF EXISTS "admin_logs_select" ON admin_logs;
 CREATE POLICY "admin_logs_select" ON admin_logs FOR SELECT USING ((SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
 
 -- ==================== VIEWS ====================

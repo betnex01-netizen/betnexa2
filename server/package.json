@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "deploy-schema": "node scripts/deploy-schema.js",
+    "test-connection": "node scripts/test-connection.js"
   },
   "keywords": [
     "payhero",

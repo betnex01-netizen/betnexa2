@@ -11,6 +11,7 @@ import { OddsProvider } from "./context/OddsContext";
 import { UserManagementProvider } from "./context/UserManagementContext";
 import { TransactionProvider } from "./context/TransactionContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 import Index from "./pages/Index";
 import AdminPortal from "./pages/AdminPortal";
 import Finance from "./pages/Finance";
@@ -55,7 +56,7 @@ const App = () => {
                           <Route path="/my-bets" element={<ProtectedRoute element={<MyBets />} />} />
                           <Route path="/history" element={<ProtectedRoute element={<History />} />} />
                           <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
-                          <Route path="/muleiadmin" element={<ProtectedRoute element={<AdminPortal />} />} />
+                          <Route path="/muleiadmin" element={<AdminProtectedRoute element={<AdminPortal />} />} />
                           <Route path="*" element={<NotFound />} />
                         </Routes>
                       </Suspense>
