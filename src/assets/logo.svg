@@ -1,0 +1,41 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradientBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gradientAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Outer circle background -->
+  <circle cx="100" cy="100" r="95" fill="url(#gradientBg)" stroke="white" stroke-width="2"/>
+  
+  <!-- Inner decorative circles -->
+  <circle cx="100" cy="100" r="85" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="1.5"/>
+  <circle cx="100" cy="100" r="75" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  
+  <!-- Sports ball (football) in center -->
+  <ellipse cx="100" cy="85" rx="20" ry="22" fill="url(#gradientAccent)"/>
+  
+  <!-- Football laces -->
+  <line x1="100" y1="65" x2="100" y2="105" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="100" cy="70" r="2.5" fill="white"/>
+  <circle cx="100" cy="78" r="2.5" fill="white"/>
+  <circle cx="100" cy="86" r="2.5" fill="white"/>
+  <circle cx="100" cy="94" r="2.5" fill="white"/>
+  <circle cx="100" cy="102" r="2.5" fill="white"/>
+  
+  <!-- Dollar sign below ball -->
+  <text x="100" y="135" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle" dy="0.3em">$</text>
+  
+  <!-- Accent curved lines (representing growth/profit) -->
+  <path d="M 70 110 Q 80 100 90 110" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M 110 110 Q 120 100 130 110" stroke="rgba(255,255,255,0.4)" stroke-width="2" fill="none" stroke-linecap="round"/>
+  
+  <!-- Top accent elements (stars/sparkles) -->
+  <circle cx="65" cy="50" r="3" fill="url(#gradientAccent)"/>
+  <circle cx="135" cy="50" r="3" fill="url(#gradientAccent)"/>
+</svg>

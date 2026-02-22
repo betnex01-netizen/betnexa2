@@ -1,0 +1,216 @@
+import { useState } from "react";
+import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
+import { Footer } from "@/components/Footer";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  User,
+  Mail,
+  Phone,
+  Award,
+  Settings,
+  LogOut,
+  Edit2,
+  CheckCircle,
+  Wallet,
+} from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { useUser } from "@/context/UserContext";
+import { useBets } from "@/context/BetContext";
+
+export default function Profile() {
+  const { user, updateUser, logout } = useUser();
+  const { balance } = useBets();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState(user);
+
+  const handleSave = () => {
+    updateUser(editData);
+    setIsEditing(false);
+  };
+
+  const stats = [
+    { label: "Total Bets", value: user?.totalBets?.toString() || "0", icon: Award },
+    { label: "Member Since", value: "1 Year 8 Months", icon: Phone },
+    {
+      label: "Verification",
+      value: "Verified",
+      icon: CheckCircle,
+      color: "text-green-500",
+    },
+  ];
+
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      <Header />
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-foreground">
+            Profile
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage your account settings
+          </p>
+        </div>
+
+        {/* Profile Header */}
+        <Card className="mb-8 border-primary/30 bg-card p-6">
+          <div className="flex flex-col items-start justify-between md:flex-row md:items-center">
+            <div className="flex items-center gap-4">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
+                <User className="h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <p className="font-display text-2xl font-bold text-foreground">
+                  {user?.name}
+                </p>
+                <p className="text-muted-foreground">@{user?.username}</p>
+                <Badge className="mt-2 bg-gold/20 text-gold">
+                  {user?.level}
+                </Badge>
+              </div>
+            </div>
+            <Button
+              variant={isEditing ? "ghost" : "hero"}
+              size="sm"
+              onClick={() => {
+                if (isEditing) {
+                  handleSave();
+                } else {
+                  setIsEditing(true);
+                }
+              }}
+            >
+              <Edit2 className="mr-2 h-4 w-4" />
+              {isEditing ? "Save Changes" : "Edit Profile"}
+            </Button>
+          </div>
+        </Card>
+
+        <Tabs defaultValue="account">
+          <TabsList className="grid w-full grid-cols-1">
+            <TabsTrigger value="account">Account</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="account" className="space-y-6">
+            {/* Personal Information */}
+            <Card className="border-border bg-card p-6">
+              <h3 className="mb-4 font-display text-lg font-bold uppercase text-foreground">
+                Personal Information
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="flex items-center text-sm font-medium text-foreground">
+                    <User className="mr-2 h-4 w-4" /> Full Name
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      value={editData.name}
+                      onChange={(e) =>
+                        setEditData({ ...editData, name: e.target.value })
+                      }
+                      className="mt-2"
+                    />
+                  ) : (
+                    <p className="mt-2 text-foreground">{user?.name}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="flex items-center text-sm font-medium text-foreground">
+                    <Mail className="mr-2 h-4 w-4" /> Email
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      type="email"
+                      value={editData.email}
+                      onChange={(e) =>
+                        setEditData({ ...editData, email: e.target.value })
+                      }
+                      className="mt-2"
+                    />
+                  ) : (
+                    <p className="mt-2 text-foreground">{user?.email}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="flex items-center text-sm font-medium text-foreground">
+                    <Phone className="mr-2 h-4 w-4" /> Phone Number
+                  </label>
+                  {isEditing ? (
+                    <Input
+                      value={editData.phone}
+                      disabled
+                      className="mt-2 opacity-60 cursor-not-allowed"
+                      title="Phone number cannot be changed"
+                    />
+                  ) : (
+                    <p className="mt-2 text-foreground">{user?.phone}</p>
+                  )}
+                  {isEditing && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Phone number cannot be changed after verification
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+
+            {/* Account Stats */}
+            <Card className="border-border bg-card p-6">
+              <h3 className="mb-4 font-display text-lg font-bold uppercase text-foreground">
+                Account Statistics
+              </h3>
+              <div className="grid gap-4 md:grid-cols-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Account Balance</p>
+                  <p className="mt-2 text-2xl font-bold text-gold">
+                    KSH {balance.toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Bets</p>
+                  <p className="mt-2 text-2xl font-bold text-primary">
+                    {user?.totalBets || 0}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Earnings</p>
+                  <p className="mt-2 text-2xl font-bold text-green-500">
+                    KSH {(user?.totalWinnings || 0).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Member Since</p>
+                  <p className="mt-2 text-2xl font-bold text-foreground">
+                    {user?.joinDate || "N/A"}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Logout Button */}
+        <div className="mt-8">
+          <Button
+            variant="ghost"
+            className="w-full text-red-500 hover:bg-red-500/10"
+            onClick={logout}
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Logout
+          </Button>
+        </div>
+      </div>
+
+      <Footer />
+      <BottomNav />
+    </div>
+  );
+}

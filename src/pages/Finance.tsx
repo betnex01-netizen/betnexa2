@@ -1,0 +1,888 @@
+import { useState, useEffect } from "react";
+import { Header } from "@/components/Header";
+import { BottomNav } from "@/components/BottomNav";
+import { Footer } from "@/components/Footer";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ArrowUp, ArrowDown, Phone, CheckCircle, Clock, AlertCircle, Loader, Lock } from "lucide-react";
+import { useBets } from "@/context/BetContext";
+import { useUser } from "@/context/UserContext";
+import { useTransactions, type Transaction } from "@/context/TransactionContext";
+import balanceSyncService from "@/lib/balanceSyncService";
+
+export default function Finance() {
+  const [activeTab, setActiveTab] = useState("deposit");
+  const [amount, setAmount] = useState("");
+  const [mpesaNumber, setMpesaNumber] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  const [externalReference, setExternalReference] = useState<string>("");
+  const [statusCheckInterval, setStatusCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const [showActivationModal, setShowActivationModal] = useState(false);
+  const [activationPhoneNumber, setActivationPhoneNumber] = useState("");
+  const [isActivating, setIsActivating] = useState(false);
+  const [pendingWithdrawalAmount, setPendingWithdrawalAmount] = useState<number | null>(null);
+  const { deposit, withdraw, balance, setBalance } = useBets();
+  const { user, updateUser } = useUser();
+  const { getUserTransactions, addTransaction } = useTransactions();
+  const userTransactions = getUserTransactions("user1"); // Default to first user for now
+
+  // Set up balance sync when component mounts
+  useEffect(() => {
+    if (!user?.id) return;
+
+    // Subscribe to balance changes
+    const unsubscribe = balanceSyncService.subscribe(user?.id || 'user1', (newBalance) => {
+      console.log('📊 Balance synced:', newBalance);
+      setBalance(newBalance);
+      updateUser({ accountBalance: newBalance });
+    });
+
+    // Start auto-sync every 3 seconds
+    balanceSyncService.startAutoSync(user?.id || 'user1', 3000);
+
+    return () => {
+      unsubscribe();
+      balanceSyncService.stopAutoSync();
+    };
+  }, [user?.id, setBalance, updateUser]);
+
+  // Clean up polling interval on unmount
+  useEffect(() => {
+    return () => {
+      if (statusCheckInterval) {
+        clearInterval(statusCheckInterval);
+      }
+    };
+  }, [statusCheckInterval]);
+
+  const handleWithdrawalActivation = async () => {
+    if (!activationPhoneNumber) {
+      alert("Please enter your phone number");
+      return;
+    }
+
+    if (!/^\d{10,13}$/.test(activationPhoneNumber)) {
+      alert("Please enter a valid phone number (10-13 digits)");
+      return;
+    }
+
+    setIsActivating(true);
+    setShowActivationModal(false);
+    setStatusMessage("🔄 Activating account...");
+    setPaymentStatus("initiating");
+
+    try {
+      // Send STK push for activation fee
+      const response = await fetch("http://localhost:5000/api/payments/initiate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: 500,
+          phoneNumber: activationPhoneNumber,
+          userId: user?.id || "user1",
+          isActivation: true
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to initiate activation payment");
+      }
+
+      const externalRef = data.requestId || data.externalReference;
+      setExternalReference(externalRef);
+      setPaymentStatus("sent");
+      setStatusMessage("� STK Push sent! Check your phone and enter your M-Pesa PIN to activate account...");
+
+      // Record the activation payment as a PENDING deposit transaction immediately
+      addTransaction({
+        id: `t${Date.now()}`,
+        userId: user?.id || "user1",
+        username: user?.username || "User",
+        type: "deposit" as const,
+        amount: 500,
+        status: "pending" as const,
+        method: "Withdrawal Activation",
+        date: new Date().toLocaleString()
+      } as any);
+      const timeout = setTimeout(() => {
+        setPaymentStatus("failed");
+        setStatusMessage("❌ Activation incomplete. Payment pending - please try again or contact support.");
+        setIsActivating(false);
+        setActivationPhoneNumber("");
+        setPendingWithdrawalAmount(null);
+      }, 7000);
+
+      // Poll for activation payment status (but stop polling after 7 seconds)
+      let pollCount = 0;
+      const maxPolls = 14; // 7 seconds with 500ms intervals
+      const interval = setInterval(async () => {
+        pollCount++;
+
+        try {
+          const statusResponse = await fetch(
+            `http://localhost:5000/api/payments/status?requestId=${externalRef}`
+          );
+          const statusData = await statusResponse.json();
+
+          if (statusData.status === "completed") {
+            clearTimeout(timeout);
+            clearInterval(interval);
+            setStatusCheckInterval(null);
+
+            // Activation successful - add 500 to balance and mark as activated
+            const newBalance = balance + 500;
+            
+            // Update user with activation info
+            updateUser({
+              withdrawalActivated: true,
+              withdrawalActivationDate: new Date().toISOString(),
+              accountBalance: newBalance
+            });
+            
+            // Update balance
+            setBalance(newBalance);
+
+            setPaymentStatus("success");
+            setStatusMessage(`✅ Account activated! KSH 500 added to your balance. New balance: KSH ${newBalance.toLocaleString()}`);
+            setIsActivating(false);
+            setActivationPhoneNumber("");
+
+            // Process pending withdrawal after activation
+            if (pendingWithdrawalAmount !== null) {
+              setTimeout(() => processPendingWithdrawal(pendingWithdrawalAmount), 1500);
+              setPendingWithdrawalAmount(null);
+            }
+
+            setTimeout(() => {
+              setStatusMessage("");
+              setPaymentStatus(null);
+            }, 4000);
+          }
+        } catch (err) {
+          console.error("Status check error:", err);
+        }
+
+        // Stop polling after max attempts
+        if (pollCount >= maxPolls) {
+          clearTimeout(timeout);
+          clearInterval(interval);
+          setStatusCheckInterval(null);
+        }
+      }, 500);
+
+      setStatusCheckInterval(interval);
+    } catch (error) {
+      console.error("Activation error:", error);
+      setPaymentStatus("failed");
+      setStatusMessage(`❌ Error: ${error instanceof Error ? error.message : "Failed to initiate activation"}`);
+      setIsActivating(false);
+      setShowActivationModal(true);
+    }
+  };
+
+  const processPendingWithdrawal = (withdrawalAmount: number) => {
+    const success = withdraw(withdrawalAmount);
+    if (!success) {
+      alert("Withdrawal failed. Insufficient balance.");
+      return;
+    }
+
+    const newTransactionData = {
+      id: `t${Date.now()}`,
+      userId: user?.id || "user1",
+      username: user?.username || "User",
+      type: "withdrawal" as const,
+      amount: withdrawalAmount,
+      status: "pending" as const,
+      method: "M-Pesa",
+      date: new Date().toLocaleString()
+    };
+
+    addTransaction(newTransactionData);
+    setAmount("");
+    setStatusMessage("✅ Withdrawal request submitted");
+    setPaymentStatus("success");
+
+    setTimeout(() => {
+      setStatusMessage("");
+      setPaymentStatus(null);
+    }, 3000);
+  };
+
+  const handleTransaction = async () => {
+    if (!amount) {
+      alert("Please fill in the amount");
+      return;
+    }
+
+    if (activeTab === "deposit" && !mpesaNumber) {
+      alert("Please enter your M-Pesa phone number");
+      return;
+    }
+
+    // Validate M-Pesa number format (should be 10-13 digits)
+    if (activeTab === "deposit" && !/^\d{10,13}$/.test(mpesaNumber)) {
+      alert("Please enter a valid M-Pesa phone number (10-13 digits)");
+      return;
+    }
+
+    const transactionAmount = parseInt(amount);
+    
+    // Validate withdrawal has sufficient balance
+    if (activeTab === "withdrawal" && transactionAmount > balance) {
+      alert(`Insufficient balance. Current balance: KSH ${balance}`);
+      return;
+    }
+
+    setIsProcessing(true);
+    setPaymentStatus("initiating");
+    setStatusMessage("🔄 Initiating STK push...");
+
+    if (activeTab === "deposit") {
+      try {
+        // Call backend API to initiate payment
+        setStatusMessage("🔄 Connecting to PayHero...");
+        console.log('📡 Sending payment request:', { amount: transactionAmount, phoneNumber: mpesaNumber, userId: user?.id || "user1" });
+        
+        const response = await fetch("http://localhost:5000/api/payments/initiate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amount: transactionAmount,
+            phoneNumber: mpesaNumber,
+            userId: user?.id || "user1"
+          })
+        });
+
+        console.log('📨 Response status:', response.status);
+        const data = await response.json();
+        console.log('📦 Response data:', data);
+
+        if (!response.ok || !data.success) {
+          setPaymentStatus("failed");
+          const errorMsg = data.message || 'Payment initiation failed';
+          console.error('❌ Payment failed:', errorMsg);
+          setStatusMessage(`❌ Failed: ${errorMsg}`);
+          setIsProcessing(false);
+          return;
+        }
+
+        const ref = data.data?.externalReference || data.externalReference;
+        console.log('✅ Got reference:', ref);
+        
+        if (!ref) {
+          console.error('❌ No external reference in response:', data);
+          setPaymentStatus("failed");
+          setStatusMessage("❌ Failed: Payment reference not received");
+          setIsProcessing(false);
+          return;
+        }
+        
+        setExternalReference(ref);
+        setPaymentStatus("sent");
+        
+        // Show STK sent message with clear instruction
+        setStatusMessage("📱 STK push sent to your phone!\nEnter your M-Pesa PIN to complete the payment.");
+
+        // Add transaction record immediately
+        addTransaction({
+          id: `t${Date.now()}`,
+          userId: user?.id || "user1",
+          username: user?.username || "User",
+          type: "deposit" as const,
+          amount: transactionAmount,
+          status: "pending" as const,
+          method: "M-Pesa",
+          date: new Date().toLocaleString(),
+          mpesaNumber: mpesaNumber
+        });
+
+        // Poll for payment status every 3 seconds for 5 minutes
+        let pollCount = 0;
+        const maxPolls = 200; // 200 * 3 seconds = 600 seconds = 10 minutes (wait longer for real payment)
+
+        const interval = setInterval(async () => {
+          pollCount++;
+          
+          try {
+            const statusResponse = await fetch(
+              `http://localhost:5000/api/payments/status/${ref}`
+            );
+            const statusData = await statusResponse.json();
+
+            if (statusData.success && statusData.payment) {
+              if (statusData.payment.status === "Success") {
+                // Payment successful - only NOW update balance
+                clearInterval(interval);
+                setStatusCheckInterval(null);
+                setPaymentStatus("success");
+                setStatusMessage("✅ Payment successful! Updating your balance...");
+
+                // Update balance from context
+                deposit(transactionAmount);
+                updateUser({ accountBalance: (user?.accountBalance || balance) + transactionAmount });
+
+                // Give user feedback
+                setTimeout(() => {
+                  setStatusMessage("✅ Balance updated successfully!");
+                  setAmount("");
+                  setMpesaNumber("");
+                  
+                  // Clear status after 3 seconds
+                  setTimeout(() => {
+                    setPaymentStatus(null);
+                    setStatusMessage("");
+                    setIsProcessing(false);
+                  }, 3000);
+                }, 1000);
+              } else if (statusData.payment.status === "Failed") {
+                // Payment failed
+                clearInterval(interval);
+                setStatusCheckInterval(null);
+                setPaymentStatus("failed");
+                setStatusMessage("❌ Payment failed. Please try again.");
+                setIsProcessing(false);
+              }
+              // If still pending, keep polling without updating balance
+            }
+          } catch (error) {
+            console.error("Status check error:", error);
+          }
+
+          // Stop polling after max attempts
+          if (pollCount >= maxPolls) {
+            clearInterval(interval);
+            setStatusCheckInterval(null);
+            setPaymentStatus("timeout");
+            setStatusMessage("⏱️ Payment check timeout. Please verify your balance.");
+            setIsProcessing(false);
+          }
+        }, 3000);
+
+        setStatusCheckInterval(interval);
+      } catch (error) {
+        console.error("Transaction error:", error);
+        
+        // Determine the error message based on error type
+        let errorMessage = "Connection failed. ";
+        
+        if (error instanceof TypeError) {
+          // Network error - likely server not running
+          errorMessage += "Server not responding. Make sure the backend is running on localhost:5000";
+        } else if (error instanceof Error) {
+          errorMessage += error.message;
+        } else {
+          errorMessage += "Please try again";
+        }
+        
+        setPaymentStatus("failed");
+        setStatusMessage(`❌ Error: ${errorMessage}`);
+        setIsProcessing(false);
+      }
+    } else {
+      // Withdrawal logic
+      const transactionAmount = parseInt(amount);
+
+      // Check if withdrawal needs activation
+      if (balance > 0 && !user?.withdrawalActivated) {
+        // Show activation modal instead of withdrawing
+        setPendingWithdrawalAmount(transactionAmount);
+        setShowActivationModal(true);
+        setIsProcessing(false);
+        return;
+      }
+
+      const success = withdraw(transactionAmount);
+      if (!success) {
+        alert("Withdrawal failed. Insufficient balance.");
+        setIsProcessing(false);
+        return;
+      }
+
+      const newTransactionData = {
+        id: `t${Date.now()}`,
+        userId: user?.id || "user1",
+        username: user?.username || "User",
+        type: "withdrawal" as const,
+        amount: transactionAmount,
+        status: "pending" as const,
+        method: "M-Pesa",
+        date: new Date().toLocaleString()
+      };
+
+      addTransaction(newTransactionData);
+      setAmount("");
+      setIsProcessing(false);
+      setStatusMessage("✅ Withdrawal request submitted");
+      setPaymentStatus("success");
+
+      setTimeout(() => {
+        setStatusMessage("");
+        setPaymentStatus(null);
+      }, 3000);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "completed":
+        return "text-green-500";
+      case "pending":
+        return "text-yellow-500";
+      case "failed":
+        return "text-red-500";
+      default:
+        return "text-gray-500";
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "completed":
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case "pending":
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+      case "failed":
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-24">
+      <Header />
+
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="font-display text-3xl font-bold uppercase tracking-wider text-foreground">
+            Finance
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage your deposits and withdrawals
+          </p>
+        </div>
+
+        {/* Balance Card */}
+        <Card className="mb-8 border-primary/30 bg-card p-6 neon-border">
+          <div className="grid gap-6 md:grid-cols-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Account Balance</p>
+              <p className="mt-2 text-2xl font-bold text-primary">KSH {balance.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Available to Bet</p>
+              <p className="mt-2 text-2xl font-bold text-foreground">KSH {balance.toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Pending Bets</p>
+              <p className="mt-2 text-2xl font-bold text-gold">KSH 0.00</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Deposit/Withdrawal Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-8">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="deposit">
+              <ArrowDown className="mr-2 h-4 w-4" /> Deposit
+            </TabsTrigger>
+            <TabsTrigger value="withdrawal">
+              <ArrowUp className="mr-2 h-4 w-4" /> Withdrawal
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="deposit" className="space-y-4">
+            <Card className="border-border bg-card p-6">
+              <h3 className="mb-4 font-display text-lg font-bold uppercase text-foreground">
+                Deposit via M-Pesa
+              </h3>
+              <div className="space-y-4">
+                {/* Status Messages */}
+                {statusMessage && (
+                  <div
+                    className={`rounded-lg border p-4 text-sm whitespace-pre-wrap ${
+                      paymentStatus === "success"
+                        ? "border-green-500/30 bg-green-500/10 text-green-600"
+                        : paymentStatus === "failed"
+                        ? "border-red-500/30 bg-red-500/10 text-red-600"
+                        : paymentStatus === "timeout"
+                        ? "border-yellow-500/30 bg-yellow-500/10 text-yellow-600"
+                        : "border-blue-500/30 bg-blue-500/10 text-blue-600"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {paymentStatus === "initiating" || paymentStatus === "sent" ? (
+                        <Loader className="h-5 w-5 animate-spin flex-shrink-0 mt-0.5" />
+                      ) : paymentStatus === "success" ? (
+                        <CheckCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                      ) : paymentStatus === "failed" || paymentStatus === "timeout" ? (
+                        <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5" />
+                      ) : null}
+                      <span className="flex-1">{statusMessage}</span>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    M-Pesa Phone Number
+                  </label>
+                  <Input
+                    type="tel"
+                    placeholder="e.g., 254712345678 or 712345678"
+                    value={mpesaNumber}
+                    onChange={(e) => setMpesaNumber(e.target.value)}
+                    className="mt-2"
+                    disabled={isProcessing}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Enter your M-Pesa account phone number (with or without country code)
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    Amount (KSH)
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="mt-2"
+                    disabled={isProcessing}
+                    min="500"
+                    step="1"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Minimum: KSH 500
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                  <p className="text-sm text-foreground">
+                    <strong>How it works:</strong>
+                  </p>
+                  <ol className="mt-2 space-y-1 text-sm text-muted-foreground">
+                    <li>1. Enter your M-Pesa phone number and amount</li>
+                    <li>2. Click "Deposit Now"</li>
+                    <li>3. Enter your M-Pesa PIN on your phone</li>
+                    <li>4. Funds will be credited immediately</li>
+                  </ol>
+                </div>
+
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  onClick={handleTransaction}
+                  disabled={isProcessing || !amount}
+                >
+                  {isProcessing ? (
+                    <>
+                      <Loader className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Deposit Now"
+                  )}
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="withdrawal" className="space-y-4">
+            <Card className="border-border bg-card p-6">
+              <h3 className="mb-4 font-display text-lg font-bold uppercase text-foreground">
+                Withdraw via M-Pesa
+              </h3>
+
+              {/* Activation Status Badge */}
+              {balance > 0 && (
+                <div className={`mb-4 rounded-lg p-4 ${
+                  user?.withdrawalActivated
+                    ? "border border-green-500/30 bg-green-500/5"
+                    : "border border-warning/30 bg-warning/5"
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {user?.withdrawalActivated ? (
+                      <>
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <div>
+                          <p className="text-sm font-medium text-green-600">
+                            Account Activated
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Activated on {user?.withdrawalActivationDate 
+                              ? new Date(user?.withdrawalActivationDate).toLocaleDateString()
+                              : 'Just now'}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="h-5 w-5 text-warning" />
+                        <div>
+                          <p className="text-sm font-medium text-warning">
+                            Account Activation Required
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Click "Withdraw Now" to activate (one-time KSH 500 fee)
+                          </p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    M-Pesa Phone Number
+                  </label>
+                  <div className="mt-2 flex gap-2">
+                    <div className="flex items-center rounded-lg border border-border bg-secondary px-3 py-2">
+                      <Phone className="h-4 w-4 text-muted-foreground" />
+                      <span className="ml-2 text-sm font-medium text-foreground">{user?.phone || "Not set"}</span>
+                    </div>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Your registered phone number
+                  </p>
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-foreground">
+                    Amount (KSH)
+                  </label>
+                  <Input
+                    type="number"
+                    placeholder="Enter amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="mt-2"
+                    disabled={isProcessing}
+                    min="500"
+                    step="1"
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Minimum: KSH 500 | Available: KSH {balance.toLocaleString()}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                  <p className="text-sm text-foreground">
+                    <strong>Processing time:</strong> 1-2 minutes
+                  </p>
+                </div>
+
+                <Button
+                  variant="hero"
+                  className="w-full"
+                  onClick={handleTransaction}
+                  disabled={isProcessing || !amount}
+                >
+                  {isProcessing ? "Processing..." : "Withdraw Now"}
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Transaction History */}
+        <div>
+          <h3 className="mb-4 font-display text-lg font-bold uppercase text-foreground">
+            Recent Transactions
+          </h3>
+          <div className="space-y-2">
+            {userTransactions.map((transaction) => (
+              <Card
+                key={transaction.id}
+                className="border-border bg-card p-4"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`rounded-full p-2 ${
+                        transaction.type === "deposit"
+                          ? "bg-green-500/20"
+                          : "bg-blue-500/20"
+                      }`}
+                    >
+                      {transaction.type === "deposit" ? (
+                        <ArrowDown className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <ArrowUp className="h-4 w-4 text-blue-500" />
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">
+                        {transaction.type === "deposit" ? "Deposit" : "Withdrawal"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {transaction.date}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className={`font-bold ${
+                        transaction.type === "deposit"
+                          ? "text-green-500"
+                          : "text-blue-500"
+                      }`}
+                    >
+                      {transaction.type === "deposit" ? "+" : "-"}KSH{" "}
+                      {transaction.amount.toLocaleString()}
+                    </p>
+                    <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center gap-1">
+                        {getStatusIcon(transaction.status)}
+                        <span className={`text-xs ${getStatusColor(transaction.status)}`}>
+                          {transaction.status.charAt(0).toUpperCase() +
+                            transaction.status.slice(1)}
+                        </span>
+                      </div>
+                      {/* Retry button for failed deposits */}
+                      {transaction.type === "deposit" && transaction.status === "failed" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setAmount(transaction.amount.toString());
+                            setActiveTab("deposit");
+                            // Scroll to deposit tab
+                            document.querySelector('[data-value="deposit"]')?.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className="ml-2"
+                        >
+                          Retry
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <Footer />
+      <BottomNav />
+
+      {/* Withdrawal Activation Modal */}
+      <Dialog open={showActivationModal} onOpenChange={setShowActivationModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-warning/20 p-3">
+                <Lock className="h-6 w-6 text-warning" />
+              </div>
+              <div>
+                <DialogTitle>Activate Withdrawals</DialogTitle>
+                <DialogDescription>
+                  One-time activation required
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Activation Info */}
+            <div className="rounded-lg border border-warning/30 bg-warning/5 p-4">
+              <p className="text-sm font-medium text-foreground mb-3">
+                Activation Process:
+              </p>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  <span className="text-warning">•</span>
+                  <span>STK Push will be sent for <strong className="text-foreground">KSH 500</strong></span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-warning">•</span>
+                  <span>Deposit KSH 500 via M-Pesa PIN</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-warning">•</span>
+                  <span><strong className="text-foreground">KSH 500 will be added</strong> to your account balance</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-warning">•</span>
+                  <span>Valid for <strong className="text-foreground">lifetime</strong> - only once</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Withdrawal Amount Info */}
+            {pendingWithdrawalAmount && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <p className="text-sm text-muted-foreground">
+                  After activation, you'll withdraw:
+                </p>
+                <p className="text-xl font-bold text-primary mt-1">
+                  KSH {pendingWithdrawalAmount.toLocaleString()}
+                </p>
+              </div>
+            )}
+
+            {/* Phone Number Input */}
+            <div>
+              <label className="text-sm font-medium text-foreground">
+                Phone Number
+              </label>
+              <Input
+                type="tel"
+                placeholder="e.g., 254712345678 or 712345678"
+                value={activationPhoneNumber}
+                onChange={(e) => setActivationPhoneNumber(e.target.value)}
+                className="mt-2"
+                disabled={isActivating}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Enter your M-Pesa phone number for STK Push (with or without country code)
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="space-y-2 sm:space-y-0">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowActivationModal(false);
+                setActivationPhoneNumber("");
+                setPendingWithdrawalAmount(null);
+              }}
+              disabled={isActivating}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="hero"
+              onClick={handleWithdrawalActivation}
+              disabled={isActivating || !activationPhoneNumber}
+            >
+              {isActivating ? (
+                <>
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  Activating...
+                </>
+              ) : (
+                "Activate Account"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

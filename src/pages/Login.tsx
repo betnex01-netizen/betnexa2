@@ -1,0 +1,214 @@
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import { AlertCircle, Lock, Phone } from "lucide-react";
+import Logo from "@/assets/betnexa official logo .jpeg";
+import { useUserManagement } from "@/context/UserManagementContext";
+import { useUser } from "@/context/UserContext";
+import { useBets } from "@/context/BetContext";
+
+export default function Login() {
+  const navigate = useNavigate();
+  const { users } = useUserManagement();
+  const { login } = useUser();
+  const { syncBalance } = useBets();
+
+  const [formData, setFormData] = useState({
+    phone: "",
+    password: "",
+  });
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [globalError, setGlobalError] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: Record<string, string> = {};
+
+    if (!formData.phone.trim()) {
+      newErrors.phone = "Phone number is required";
+    }
+
+    if (!formData.password) {
+      newErrors.password = "Password is required";
+    } else if (!/^\d{4}$/.test(formData.password)) {
+      newErrors.password = "Password must be exactly 4 digits";
+    }
+
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    setGlobalError("");
+
+    setTimeout(() => {
+      // Check for admin credentials
+      if (formData.phone === "0714945142" && formData.password === "4306") {
+        // Admin login
+        login({
+          id: "admin",
+          name: "Admin",
+          email: "admin@betnexa.com",
+          phone: "0714945142",
+          password: "4306",
+          username: "admin",
+          verified: true,
+          level: "Administrator",
+          joinDate: new Date().toISOString().split('T')[0],
+          totalBets: 0,
+          totalWinnings: 0,
+          accountBalance: 0,
+          withdrawalActivated: false,
+          withdrawalActivationDate: null,
+          isAdmin: true,
+        });
+
+        setIsSubmitting(false);
+        navigate("/muleiadmin");
+        return;
+      }
+
+      // Find user by phone and password
+      const user = users.find(
+        (u) => u.phone === formData.phone && u.password === formData.password
+      );
+
+      if (!user) {
+        setGlobalError("Invalid phone number or password");
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Update current user and redirect
+      login({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        password: user.password,
+        username: user.username,
+        verified: user.verified,
+        level: user.level,
+        joinDate: user.joinDate,
+        totalBets: user.totalBets,
+        totalWinnings: user.totalWinnings,
+        accountBalance: user.accountBalance,
+        withdrawalActivated: user.withdrawalActivated || false,
+        withdrawalActivationDate: user.withdrawalActivationDate || null,
+        isAdmin: false,
+      });
+
+      // Sync balance
+      syncBalance(user.accountBalance);
+
+      setIsSubmitting(false);
+      navigate("/");
+    }, 1500);
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
+      <header className="border-b border-border/50 bg-background/95 backdrop-blur-md">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-2 w-fit cursor-pointer">
+            <img src={Logo} alt="BETNEXA Logo" className="h-10 w-10" />
+            <span className="font-display text-lg font-bold tracking-wider text-foreground">
+              BET<span className="text-primary">NEXA</span>
+            </span>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center px-4 py-8">
+        <Card className="w-full max-w-md border-primary/30 bg-card p-8 neon-border">
+          <div className="mb-8 text-center">
+            <h1 className="font-display text-2xl font-bold text-foreground">Login</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Welcome back to BETNEXA
+            </p>
+          </div>
+
+          {globalError && (
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 p-4">
+              <div className="flex items-center gap-2 text-sm text-red-600">
+                <AlertCircle className="h-4 w-4" />
+                {globalError}
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            {/* Phone Number */}
+            <div>
+              <label className="text-sm font-medium text-foreground">Phone Number</label>
+              <div className="relative mt-1.5">
+                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="tel"
+                  placeholder="e.g., 254712345678"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="pl-10"
+                />
+              </div>
+              {errors.phone && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-red-500">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.phone}
+                </div>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="text-sm font-medium text-foreground">Password (4 Digits)</label>
+              <div className="relative mt-1.5">
+                <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="Enter your 4-digit password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value.replace(/\D/g, "") })}
+                  className="pl-10"
+                />
+              </div>
+              {errors.password && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-red-500">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.password}
+                </div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              variant="hero"
+              className="w-full mt-6"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Logging in..." : "Login"}
+            </Button>
+          </form>
+
+          {/* Signup Link */}
+          <div className="mt-6 text-center text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <Link to="/signup" className="text-primary hover:underline font-medium">
+              Sign up here
+            </Link>
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
