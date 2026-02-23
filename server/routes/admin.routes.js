@@ -1,5 +1,5 @@
 const express = require('express');
-const { supabase } = require('../services/database');
+const supabase = require('../services/database');
 
 const router = express.Router();
 
@@ -45,6 +45,11 @@ router.get('/games', async (req, res) => {
   try {
     console.log(`\n📊 Fetching all games...`);
     
+    if (!supabase) {
+      console.error('❌ Supabase client is not initialized');
+      return res.status(500).json({ error: 'Database connection failed', details: 'Supabase client not initialized' });
+    }
+
     const { data: games, error } = await supabase
       .from('games')
       .select('*')
@@ -52,7 +57,7 @@ router.get('/games', async (req, res) => {
 
     if (error) {
       console.error('❌ Database query error:', error);
-      throw error;
+      return res.status(500).json({ error: 'Failed to fetch games', details: error.message, code: error.code });
     }
 
     console.log(`✅ Retrieved ${games?.length || 0} games`);

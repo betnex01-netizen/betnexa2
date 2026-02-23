@@ -38,4 +38,3 @@ try {
 }
 
 module.exports = supabase;
-module.exports.supabase = supabase;
