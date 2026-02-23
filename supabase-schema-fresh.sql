@@ -234,89 +234,25 @@ CREATE TABLE IF NOT EXISTS announcements (
 
 -- ==================== INDEXES ====================
 
-DO $$ BEGIN
-  CREATE INDEX idx_users_username ON users(username);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_users_phone ON users(phone_number);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_users_is_admin ON users(is_admin);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_users_status ON users(status);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_users_created_at ON users(created_at);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_games_status ON games(status);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_games_league ON games(league);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_games_created_at ON games(created_at);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_markets_game_id ON markets(game_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_markets_market_type ON markets(market_type);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_bets_user_status ON bets(user_id, status);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_bets_created_at ON bets(created_at DESC);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_bet_selections_outcome ON bet_selections(outcome);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_transactions_user_type ON transactions(user_id, type);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_transactions_created_at ON transactions(created_at DESC);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE INDEX idx_payments_completed_at ON payments(completed_at);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone_number);
+CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);
+CREATE INDEX IF NOT EXISTS idx_users_status ON users(status);
+CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
+CREATE INDEX IF NOT EXISTS idx_games_status ON games(status);
+CREATE INDEX IF NOT EXISTS idx_games_league ON games(league);
+CREATE INDEX IF NOT EXISTS idx_games_created_at ON games(created_at);
+CREATE INDEX IF NOT EXISTS idx_markets_game_id ON markets(game_id);
+CREATE INDEX IF NOT EXISTS idx_markets_market_type ON markets(market_type);
+CREATE INDEX IF NOT EXISTS idx_bets_user_status ON bets(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_bets_created_at ON bets(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_bet_selections_outcome ON bet_selections(outcome);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_type ON transactions(user_id, type);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at ON transactions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_completed_at ON payments(completed_at);
 
 -- ==================== FUNCTIONS ====================
 
--- Function to update user balance
 CREATE OR REPLACE FUNCTION update_user_balance(
   p_user_id UUID,
   p_amount DECIMAL,
@@ -329,58 +265,33 @@ DECLARE
 BEGIN
   SELECT account_balance INTO v_old_balance FROM users WHERE id = p_user_id;
   v_new_balance := v_old_balance + p_amount;
-  UPDATE users SET account_balance = v_new_balance, updated_at = NOW() WHERE id = p_user_id;
-  INSERT INTO balance_history (user_id, balance_before, balance_after, change, reason, created_by)
-  VALUES (p_user_id, v_old_balance, v_new_balance, p_amount, p_reason, 'system');
+  UPDATE users 
+  SET account_balance = v_new_balance, updated_at = NOW()
+  WHERE id = p_user_id;
   RETURN v_new_balance;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to settle a bet
-CREATE OR REPLACE FUNCTION settle_bet(
-  p_bet_id UUID,
-  p_status bet_status,
-  p_payout_amount DECIMAL DEFAULT 0
-)
-RETURNS VOID AS $$
-DECLARE
-  v_user_id UUID;
-  v_stake DECIMAL;
-BEGIN
-  SELECT user_id, stake INTO v_user_id, v_stake FROM bets WHERE id = p_bet_id;
-  UPDATE bets SET status = p_status, settled_at = NOW(), updated_at = NOW() WHERE id = p_bet_id;
-  IF p_status = 'Won' THEN
-    PERFORM update_user_balance(v_user_id, p_payout_amount, 'bet_payout');
-    UPDATE users SET total_winnings = total_winnings + p_payout_amount WHERE id = v_user_id;
-  ELSIF p_status = 'Lost' THEN
-    PERFORM update_user_balance(v_user_id, 0, 'bet_lost');
-  END IF;
-END;
-$$ LANGUAGE plpgsql;
-
--- Function to log admin action
 CREATE OR REPLACE FUNCTION log_admin_action(
   p_admin_id UUID,
   p_action TEXT,
   p_target_type TEXT,
   p_target_id UUID,
-  p_changes JSONB,
-  p_description TEXT DEFAULT NULL
+  p_changes JSONB
 )
 RETURNS UUID AS $$
 DECLARE
   v_log_id UUID;
 BEGIN
-  INSERT INTO admin_logs (admin_id, action, target_type, target_id, changes, description)
-  VALUES (p_admin_id, p_action, p_target_type, p_target_id, p_changes, p_description)
+  INSERT INTO admin_logs (admin_id, action, target_type, target_id, changes)
+  VALUES (p_admin_id, p_action, p_target_type, p_target_id, p_changes)
   RETURNING id INTO v_log_id;
   RETURN v_log_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- ==================== TRIGGER FUNCTIONS ====================
+-- ==================== TRIGGERS ====================
 
--- Function to update user timestamp
 CREATE OR REPLACE FUNCTION update_user_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -389,7 +300,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to update game timestamp
+DO $$ BEGIN
+  CREATE TRIGGER trigger_users_update
+  BEFORE UPDATE ON users
+  FOR EACH ROW
+  EXECUTE FUNCTION update_user_timestamp();
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
 CREATE OR REPLACE FUNCTION update_game_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -398,7 +316,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to update bet timestamp
+DO $$ BEGIN
+  CREATE TRIGGER trigger_games_update
+  BEFORE UPDATE ON games
+  FOR EACH ROW
+  EXECUTE FUNCTION update_game_timestamp();
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
 CREATE OR REPLACE FUNCTION update_bet_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -407,42 +332,112 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to update transaction completion
-CREATE OR REPLACE FUNCTION update_transaction_completion()
+DO $$ BEGIN
+  CREATE TRIGGER trigger_bets_update
+  BEFORE UPDATE ON bets
+  FOR EACH ROW
+  EXECUTE FUNCTION update_bet_timestamp();
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
+
+CREATE OR REPLACE FUNCTION auto_update_transaction_completed()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
   IF NEW.status = 'completed' AND OLD.status != 'completed' THEN
     NEW.completed_at = NOW();
-  ELSIF NEW.status = 'failed' AND OLD.status != 'failed' THEN
+  END IF;
+  IF NEW.status = 'failed' AND OLD.status != 'failed' THEN
     NEW.failed_at = NOW();
   END IF;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- ==================== TRIGGERS ====================
+DO $$ BEGIN
+  CREATE TRIGGER trigger_transaction_completion
+  BEFORE UPDATE ON transactions
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_update_transaction_completed();
+EXCEPTION WHEN duplicate_object THEN null;
+END $$;
 
-DROP TRIGGER IF EXISTS trigger_users_update ON users;
-CREATE TRIGGER trigger_users_update BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_user_timestamp();
+-- ==================== ROW LEVEL SECURITY (RLS) ====================
+-- DISABLED: Custom authentication used (phone + password), not Supabase Auth
+-- Backend service role can access all tables without RLS restrictions
+-- This allows the backend API to work with custom authentication
 
-DROP TRIGGER IF EXISTS trigger_games_update ON games;
-CREATE TRIGGER trigger_games_update BEFORE UPDATE ON games FOR EACH ROW EXECUTE FUNCTION update_game_timestamp();
+-- Disable RLS on all tables since we use custom auth with backend service role
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE games DISABLE ROW LEVEL SECURITY;
+ALTER TABLE markets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE bets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE bet_selections DISABLE ROW LEVEL SECURITY;
+ALTER TABLE transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE payments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE balance_history DISABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE announcements DISABLE ROW LEVEL SECURITY;
+ALTER TABLE settings DISABLE ROW LEVEL SECURITY;
 
-DROP TRIGGER IF EXISTS trigger_bets_update ON bets;
-CREATE TRIGGER trigger_bets_update BEFORE UPDATE ON bets FOR EACH ROW EXECUTE FUNCTION update_bet_timestamp();
+-- ==================== VIEWS ====================
 
-DROP TRIGGER IF EXISTS trigger_transactions_update ON transactions;
-CREATE TRIGGER trigger_transactions_update BEFORE UPDATE ON transactions FOR EACH ROW EXECUTE FUNCTION update_transaction_completion();
+CREATE OR REPLACE VIEW active_bets AS
+SELECT 
+  b.id,
+  b.bet_id,
+  b.user_id,
+  u.username,
+  b.stake,
+  b.potential_win,
+  b.total_odds,
+  b.status,
+  COUNT(bs.id) as selections_count,
+  b.placed_at,
+  b.created_at
+FROM bets b
+LEFT JOIN bet_selections bs ON b.id = bs.bet_id
+LEFT JOIN users u ON b.user_id = u.id
+WHERE b.status = 'Open'
+GROUP BY b.id, b.bet_id, b.user_id, u.username, b.stake, b.potential_win, b.total_odds, b.status, b.placed_at, b.created_at;
 
--- ==================== INITIAL SETTINGS ====================
+CREATE OR REPLACE VIEW user_balance_summary AS
+SELECT 
+  u.id,
+  u.username,
+  u.account_balance,
+  u.total_bets,
+  u.total_winnings,
+  COUNT(DISTINCT b.id) as active_bets_count,
+  COALESCE(SUM(CASE WHEN b.status = 'Won' THEN b.potential_win ELSE 0 END), 0) as pending_winnings
+FROM users u
+LEFT JOIN bets b ON u.id = b.user_id AND b.status = 'Open'
+WHERE u.deleted_at IS NULL
+GROUP BY u.id, u.username, u.account_balance, u.total_bets, u.total_winnings;
 
-INSERT INTO settings (setting_key, setting_value, data_type, description) VALUES
-('min_deposit', '500', 'number', 'Minimum deposit amount in KSH'),
-('min_stake', '500', 'number', 'Minimum stake amount in KSH'),
-('max_stake', '1000000', 'number', 'Maximum stake amount in KSH'),
-('withdrawal_fee_percentage', '0', 'number', 'Withdrawal fee percentage'),
-('deposit_fee_percentage', '0', 'number', 'Deposit fee percentage'),
+CREATE OR REPLACE VIEW transaction_summary AS
+SELECT 
+  u.id,
+  u.username,
+  COUNT(t.id) as total_transactions,
+  SUM(CASE WHEN t.type = 'deposit' THEN t.amount ELSE 0 END) as total_deposits,
+  SUM(CASE WHEN t.type = 'withdrawal' THEN t.amount ELSE 0 END) as total_withdrawals,
+  SUM(CASE WHEN t.type = 'bet_placement' THEN t.amount ELSE 0 END) as total_bet_stakes,
+  SUM(CASE WHEN t.type = 'bet_payout' THEN t.amount ELSE 0 END) as total_payouts
+FROM users u
+LEFT JOIN transactions t ON u.id = t.user_id AND t.status = 'completed'
+WHERE u.deleted_at IS NULL
+GROUP BY u.id, u.username;
+
+-- ==================== INITIAL DATA ====================
+
+INSERT INTO settings (setting_key, setting_value, data_type, description)
+VALUES 
+('bets_max_number', '15', 'number', 'Maximum number of bets per slip'),
+('stake_minimum', '100', 'number', 'Minimum stake in KES'),
+('stake_maximum', '500000', 'number', 'Maximum stake in KES'),
+('withdrawal_minimum', '500', 'number', 'Minimum withdrawal amount'),
+('deposit_minimum', '100', 'number', 'Minimum deposit amount'),
 ('bet_settlement_timeout', '600', 'number', 'Bet settlement polling timeout in seconds'),
 ('max_odds_multiplier', '10', 'number', 'Maximum odds multiplier for a single bet'),
 ('maintenance_mode', 'false', 'boolean', 'Site maintenance mode'),
@@ -451,73 +446,9 @@ INSERT INTO settings (setting_key, setting_value, data_type, description) VALUES
 ('payhero_api_secret', '', 'string', 'PayHero API Secret')
 ON CONFLICT (setting_key) DO NOTHING;
 
--- ==================== ROW LEVEL SECURITY (RLS) ====================
-
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE games ENABLE ROW LEVEL SECURITY;
-ALTER TABLE markets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bets ENABLE ROW LEVEL SECURITY;
-ALTER TABLE bet_selections ENABLE ROW LEVEL SECURITY;
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE balance_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "users_select" ON users;
-CREATE POLICY "users_select" ON users FOR SELECT USING (auth.uid()::uuid = id OR (SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
-
-DROP POLICY IF EXISTS "users_update" ON users;
-CREATE POLICY "users_update" ON users FOR UPDATE USING (auth.uid()::uuid = id);
-
-DROP POLICY IF EXISTS "games_select" ON games;
-CREATE POLICY "games_select" ON games FOR SELECT USING (TRUE);
-
-DROP POLICY IF EXISTS "games_update" ON games;
-CREATE POLICY "games_update" ON games FOR UPDATE USING ((SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
-
-DROP POLICY IF EXISTS "bets_select" ON bets;
-CREATE POLICY "bets_select" ON bets FOR SELECT USING (auth.uid()::uuid = user_id OR (SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
-
-DROP POLICY IF EXISTS "transactions_select" ON transactions;
-CREATE POLICY "transactions_select" ON transactions FOR SELECT USING (auth.uid()::uuid = user_id OR (SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
-
-DROP POLICY IF EXISTS "admin_logs_select" ON admin_logs;
-CREATE POLICY "admin_logs_select" ON admin_logs FOR SELECT USING ((SELECT is_admin FROM users WHERE id = auth.uid()::uuid) = TRUE);
-
--- ==================== VIEWS ====================
-
-CREATE OR REPLACE VIEW active_bets AS
-SELECT b.id, b.bet_id, b.user_id, u.username, b.stake, b.potential_win, b.total_odds, b.status, COUNT(bs.id) as selections_count, b.placed_at, b.created_at
-FROM bets b
-LEFT JOIN bet_selections bs ON b.id = bs.bet_id
-LEFT JOIN users u ON b.user_id = u.id
-WHERE b.status = 'Open'
-GROUP BY b.id, b.bet_id, b.user_id, u.username, b.stake, b.potential_win, b.total_odds, b.status, b.placed_at, b.created_at;
-
-CREATE OR REPLACE VIEW user_balance_summary AS
-SELECT u.id, u.username, u.account_balance, u.total_bets, u.total_winnings, COUNT(DISTINCT b.id) as active_bets_count, 
-COALESCE(SUM(CASE WHEN b.status = 'Won' THEN b.potential_win ELSE 0 END), 0) as pending_winnings
-FROM users u
-LEFT JOIN bets b ON u.id = b.user_id AND b.status = 'Open'
-WHERE u.deleted_at IS NULL
-GROUP BY u.id, u.username, u.account_balance, u.total_bets, u.total_winnings;
-
-CREATE OR REPLACE VIEW transaction_summary AS
-SELECT u.id, u.username, COUNT(t.id) as total_transactions, 
-SUM(CASE WHEN t.type = 'deposit' THEN t.amount ELSE 0 END) as total_deposits,
-SUM(CASE WHEN t.type = 'withdrawal' THEN t.amount ELSE 0 END) as total_withdrawals,
-SUM(CASE WHEN t.type = 'bet_placement' THEN t.amount ELSE 0 END) as total_bet_stakes,
-SUM(CASE WHEN t.type = 'bet_payout' THEN t.amount ELSE 0 END) as total_payouts
-FROM users u
-LEFT JOIN transactions t ON u.id = t.user_id AND t.status = 'completed'
-WHERE u.deleted_at IS NULL
-GROUP BY u.id, u.username;
-
 -- ==================== GRANT PERMISSIONS ====================
 
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO service_role;
 GRANT ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public TO service_role;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO service_role;

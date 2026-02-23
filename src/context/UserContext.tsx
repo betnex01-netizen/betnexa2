@@ -92,101 +92,57 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Login with Supabase using phone and password
+  // Login with backend API
   const loginWithSupabase = async (phone: string, password: string): Promise<UserProfile | null> => {
     try {
-      // Query users table to find by phone
-      const { data: users, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('phone_number', phone)
-        .single();
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app'}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone, password }),
+      });
 
-      if (error || !users) {
-        console.error('User not found:', error?.message);
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        console.error('Login failed:', data.message);
         return null;
       }
 
-      // Check password (in production, this should be handled by proper auth)
-      if (users.password !== password) {
-        console.error('Invalid password');
-        return null;
-      }
-
-      const userData: UserProfile = {
-        id: users.id,
-        name: users.username,
-        email: users.email || '',
-        phone: users.phone_number,
-        password: users.password,
-        username: users.username,
-        verified: users.is_verified,
-        level: users.role === 'admin' ? 'Admin' : 'Member',
-        joinDate: new Date(users.created_at).toLocaleDateString(),
-        totalBets: users.total_bets || 0,
-        totalWinnings: users.total_winnings || 0,
-        accountBalance: parseFloat(users.account_balance) || 0,
-        withdrawalActivated: users.withdrawal_activated || false,
-        withdrawalActivationDate: users.withdrawal_activation_date,
-        isAdmin: users.is_admin || false,
-      };
-
-      login(userData);
-      return userData;
+      login(data.user);
+      return data.user;
     } catch (error) {
       console.error('Login error:', error);
       return null;
     }
   };
 
-  // Signup with Supabase
+  // Signup with backend API
   const signupWithSupabase = async (userData: any): Promise<UserProfile | null> => {
     try {
-      const { data: newUser, error } = await supabase
-        .from('users')
-        .insert([
-          {
-            username: userData.username,
-            phone_number: userData.phone,
-            email: userData.email,
-            password: userData.password,
-            account_balance: 0,
-            total_bets: 0,
-            total_winnings: 0,
-            is_verified: false,
-            is_admin: false,
-            role: 'user',
-            status: 'active',
-          },
-        ])
-        .select()
-        .single();
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app'}/api/auth/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: userData.username,
+          email: userData.email,
+          phone: userData.phone,
+          password: userData.password,
+        }),
+      });
 
-      if (error || !newUser) {
-        console.error('Signup error:', error?.message);
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        console.error('Signup failed:', data.message);
         return null;
       }
 
-      const userProfile: UserProfile = {
-        id: newUser.id,
-        name: newUser.username,
-        email: newUser.email || '',
-        phone: newUser.phone_number,
-        password: newUser.password,
-        username: newUser.username,
-        verified: false,
-        level: 'Member',
-        joinDate: new Date().toLocaleDateString(),
-        totalBets: 0,
-        totalWinnings: 0,
-        accountBalance: 0,
-        withdrawalActivated: false,
-        withdrawalActivationDate: null,
-        isAdmin: false,
-      };
-
-      login(userProfile);
-      return userProfile;
+      login(data.user);
+      return data.user;
     } catch (error) {
       console.error('Signup error:', error);
       return null;

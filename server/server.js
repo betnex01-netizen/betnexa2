@@ -4,6 +4,7 @@ require('dotenv').config();
 const https = require('https');
 const PaymentRoutes = require('./routes/payment.routes.js');
 const CallbackRoutes = require('./routes/callback.routes.js');
+const AuthRoutes = require('./routes/auth.routes.js');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -23,6 +24,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/api/auth', AuthRoutes);
 app.use('/api/payments', PaymentRoutes);
 app.use('/api/callbacks', CallbackRoutes);
 
