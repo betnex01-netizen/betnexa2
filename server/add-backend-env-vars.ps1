@@ -1,12 +1,12 @@
 #!/usr/bin/env pwsh
 
 $vars = @{
-    "SUPABASE_URL" = "https://eaqogmybihiqzivuwyav.supabase.co"
-    "SUPABASE_ANON_KEY" = "sb_publishable_Lc8dQIzND4_qyIbN2EuQrQ_0Ma0OINQ"
-    "SUPABASE_SERVICE_KEY" = "sb_secret_JnzsAy2ljyd__NdzokUXhA_2k7loTgg"
-    "PAYHERO_API_KEY" = "6CUxNcfi9jRpr4eWicAn"
-    "PAYHERO_API_SECRET" = "j6zP2XpAlXn9UhtHOj9PbYQVAdlQnkeyrEWuFOAH"
-    "PAYHERO_ACCOUNT_ID" = "3398"
+    "SUPABASE_URL" = "https://your-supabase-url.supabase.co"
+    "SUPABASE_ANON_KEY" = "your_supabase_anon_key"
+    "SUPABASE_SERVICE_KEY" = "your_supabase_service_key"
+    "PAYHERO_API_KEY" = "your_payhero_api_key"
+    "PAYHERO_API_SECRET" = "your_payhero_api_secret"
+    "PAYHERO_ACCOUNT_ID" = "your_payhero_account_id"
     "NODE_ENV" = "production"
     "PORT" = "5000"
     "CALLBACK_URL" = "https://server-chi-orcin.vercel.app/api/callbacks"
