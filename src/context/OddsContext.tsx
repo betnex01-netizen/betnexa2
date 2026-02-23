@@ -35,17 +35,33 @@ const OddsContext = createContext<OddsContextType | undefined>(undefined);
 export function OddsProvider({ children }: { children: ReactNode }) {
   const [games, setGames] = useState<GameOdds[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Fetch games from database on component mount
   useEffect(() => {
     const fetchGames = async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
-        const response = await fetch(`${apiUrl}/api/admin/games`);
         
+        console.log('🔄 Fetching games from:', apiUrl);
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+        const response = await fetch(`${apiUrl}/api/admin/games`, {
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        console.log('📊 Fetch response status:', response.status);
+
         if (response.ok) {
           const data = await response.json();
+          
           if (data.success && Array.isArray(data.games)) {
+            console.log('✅ Successfully loaded', data.games.length, 'games');
+            
             // Transform database games to GameOdds format
             const transformedGames: GameOdds[] = data.games.map((g: any) => ({
               id: g.game_id || g.id,
@@ -63,10 +79,22 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               minute: g.minute || 0,
             }));
             setGames(transformedGames);
+            setLoadError(null);
+          } else {
+            console.warn('⚠️ Invalid response format:', data);
+            setLoadError(null); // Don't show error, just start with empty games
           }
+        } else {
+          console.warn('⚠️ API returned non-OK status:', response.status);
+          setLoadError(null); // Don't block app from loading
         }
-      } catch (error) {
-        console.error('Error fetching games:', error);
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          console.warn('⏱️ Game fetch timeout (10s)');
+        } else {
+          console.error('❌ Error fetching games:', error);
+        }
+        setLoadError(null); // Don't block app from loading
       } finally {
         setIsLoading(false);
       }
@@ -78,8 +106,16 @@ export function OddsProvider({ children }: { children: ReactNode }) {
   const refreshGames = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
-      const response = await fetch(`${apiUrl}/api/admin/games`);
       
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      const response = await fetch(`${apiUrl}/api/admin/games`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
       if (response.ok) {
         const data = await response.json();
         if (data.success && Array.isArray(data.games)) {
@@ -102,8 +138,12 @@ export function OddsProvider({ children }: { children: ReactNode }) {
           setGames(transformedGames);
         }
       }
-    } catch (error) {
-      console.error('Error refreshing games:', error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.warn('⏱️ Game refresh timeout (10s)');
+      } else {
+        console.error('❌ Error refreshing games:', error);
+      }
     }
   };
 
