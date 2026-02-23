@@ -115,7 +115,7 @@ const AdminPortal = () => {
       }
 
       // Call backend to delete user
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://betnexa-server.vercel.app';
       const response = await fetch(`${apiUrl}/api/payments/admin/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
@@ -329,7 +329,7 @@ const AdminPortal = () => {
   const fetchFailedPayments = async () => {
     setLoadingPayments(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://betnexa-server.vercel.app';
       const response = await fetch(`${apiUrl}/api/payments/admin/failed`);
       const data = await response.json();
       if (data.success) {
@@ -348,7 +348,7 @@ const AdminPortal = () => {
       setResolvingPayment(externalReference);
       const data = resolutionData[externalReference] || {};
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://betnexa-server.vercel.app';
       const response = await fetch(
         `${apiUrl}/api/payments/admin/resolve/${externalReference}`,
         {

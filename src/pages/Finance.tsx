@@ -79,7 +79,7 @@ export default function Finance() {
 
     try {
       // Send STK push for activation fee
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://betnexa-server.vercel.app';
       const response = await fetch(`${apiUrl}/api/payments/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ export default function Finance() {
         pollCount++;
 
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://betnexa-server.vercel.app';
           const statusResponse = await fetch(
             `${apiUrl}/api/payments/status?requestId=${externalRef}`
           );
@@ -316,7 +316,7 @@ export default function Finance() {
           pollCount++;
           
           try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://betnexa-server.vercel.app';
             const statusResponse = await fetch(
               `${apiUrl}/api/payments/status/${ref}`
             );

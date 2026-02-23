@@ -10,7 +10,7 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors({
-  origin: ['https://betnexa.vercel.app', 'https://server-chi-orcin.vercel.app', 'http://localhost:8080', 'http://localhost:3000'],
+  origin: ['https://betnexa.vercel.app', 'https://betnexa-server.vercel.app', 'http://localhost:8080', 'http://localhost:3000'],
   credentials: true
 }));
 app.use(express.json());
