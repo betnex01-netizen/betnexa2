@@ -3,41 +3,36 @@
 -- Kickoff: 11:00 PM on 23rd Feb 2026
 -- Match Odds: 1 @2.80, X @3.58, 2 @3.63
 
--- 1. Insert the main game
-INSERT INTO games (
-  game_id,
-  league,
-  home_team,
-  away_team,
-  home_odds,
-  draw_odds,
-  away_odds,
-  time,
-  status,
-  created_at,
-  updated_at
-) VALUES (
-  'g' || to_char(NOW(), 'YYYYMMDDHHmmss') || '_northernstorm_rampage',
-  'Football',
-  'Northern Storm',
-  'Rampage Fc',
-  2.80,
-  3.58,
-  3.63,
-  '2026-02-23T23:00:00Z',
-  'upcoming',
-  NOW(),
-  NOW()
-) RETURNING id INTO @game_id;
-
--- Get the game_id for reference in markets
 DO $$
 DECLARE
   v_game_id UUID;
 BEGIN
-  SELECT id INTO v_game_id FROM games 
-  WHERE home_team = 'Northern Storm' AND away_team = 'Rampage Fc'
-  ORDER BY created_at DESC LIMIT 1;
+  -- 1. Insert the main game
+  INSERT INTO games (
+    game_id,
+    league,
+    home_team,
+    away_team,
+    home_odds,
+    draw_odds,
+    away_odds,
+    time,
+    status,
+    created_at,
+    updated_at
+  ) VALUES (
+    'g' || to_char(NOW(), 'YYYYMMDDHHmmss') || '_northernstorm_rampage',
+    'Football',
+    'Northern Storm',
+    'Rampage Fc',
+    2.80,
+    3.58,
+    3.63,
+    '2026-02-23T23:00:00Z',
+    'upcoming',
+    NOW(),
+    NOW()
+  ) RETURNING id INTO v_game_id;
 
   -- ==================== MATCH ODDS ====================
   INSERT INTO markets (game_id, market_type, market_key, odds) VALUES
