@@ -191,16 +191,16 @@ const AdminPortal = () => {
       if (data.success) {
         // Add game to local context for immediate UI update
         const gameData: GameOdds = {
-          id: data.game.game_id,
-          league: data.game.league,
+          id: data.game.game_id || data.game.id,
+          league: data.game.league || '',
           homeTeam: data.game.home_team,
           awayTeam: data.game.away_team,
-          homeOdds: data.game.home_odds,
-          drawOdds: data.game.draw_odds,
-          awayOdds: data.game.away_odds,
-          time: data.game.scheduled_time,
-          status: data.game.status,
-          markets: data.game.markets,
+          homeOdds: parseFloat(data.game.home_odds),
+          drawOdds: parseFloat(data.game.draw_odds),
+          awayOdds: parseFloat(data.game.away_odds),
+          time: data.game.time || new Date().toISOString(),
+          status: data.game.status || 'upcoming',
+          markets: data.game.markets || {},
         };
         addGame(gameData);
         setNewGame({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", status: "upcoming" });
