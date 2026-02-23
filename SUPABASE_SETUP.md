@@ -35,7 +35,7 @@ On Vercel Dashboard (betnexa project):
   ```
   VITE_SUPABASE_URL=https://eaqogmybihiqzivuwyav.supabase.co
   VITE_SUPABASE_ANON_KEY=<your-anon-key-here>
-  VITE_API_URL=https://server-chi-orcin.vercel.app
+  VITE_API_URL=https://server-tau-puce.vercel.app
   ```
 
 ## Step 5: Enable Supabase Auth
@@ -46,12 +46,12 @@ On Vercel Dashboard (betnexa project):
 4. Add Redirect URLs:
    - `http://localhost:3000/**`
    - `https://betnexa-****.vercel.app/**` (your frontend URL)
-   - `https://server-chi-orcin.vercel.app/**`
+   - `https://server-tau-puce.vercel.app/**`
 
 ## Step 6: Test Connection
 
 1. Deploy backend with new key
-2. Check: `https://server-chi-orcin.vercel.app/api/health`
+2. Check: `https://server-tau-puce.vercel.app/api/health`
 3. Should see: `{"status":"Server is running"...}`
 
 Once done, tell me and I'll update the code to properly use Supabase!

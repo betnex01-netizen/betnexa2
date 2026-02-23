@@ -7,7 +7,7 @@ echo "==========================================="
 echo ""
 
 echo "✓ Frontend URL: https://betnexa.vercel.app"
-echo "✓ Backend URL: https://server-chi-orcin.vercel.app"
+echo "✓ Backend URL: https://server-tau-puce.vercel.app"
 echo ""
 
 echo "Step 1: Link Frontend Project"
