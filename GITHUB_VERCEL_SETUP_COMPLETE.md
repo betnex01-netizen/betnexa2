@@ -34,7 +34,7 @@ Created in your workspace:
 ```
 VITE_SUPABASE_URL = https://eaqogmybihiqzivuwyav.supabase.co
 VITE_SUPABASE_ANON_KEY = sb_publishable_Lc8dQIzND4_qyIbN2EuQrQ_0Ma0OINQ
-VITE_API_URL = https://server-chi-orcin.vercel.app
+VITE_API_URL = https://server-tau-puce.vercel.app
 ```
 
 #### Backend (https://vercel.com/dashboard/server-chi-orcin/settings/environment-variables)
@@ -78,10 +78,10 @@ CALLBACK_URL = https://server-chi-orcin.vercel.app/api/callbacks
 - **Repository**: https://github.com/betnex01-netizen/betnexa2
 
 ### Backend (Server)
-- **Deployment**: https://server-chi-orcin.vercel.app/
-- **Health Check**: https://server-chi-orcin.vercel.app/api/health
-- **Dashboard**: https://vercel.com/dashboard/server-chi-orcin
-- **API Base**: https://server-chi-orcin.vercel.app/api
+- **Deployment**: https://server-tau-puce.vercel.app/
+- **Health Check**: https://server-tau-puce.vercel.app/api/health
+- **Dashboard**: https://vercel.com/dashboard/server-tau-puce
+- **API Base**: https://server-tau-puce.vercel.app/api
 
 ### Supabase
 - **Project URL**: https://eaqogmybihiqzivuwyav.supabase.co

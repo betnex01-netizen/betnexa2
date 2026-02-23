@@ -6,7 +6,7 @@ Write-Host "==========================================" -ForegroundColor Green
 Write-Host ""
 
 Write-Host "✓ Frontend URL: https://betnexa.vercel.app" -ForegroundColor Cyan
-Write-Host "✓ Backend URL: https://server-chi-orcin.vercel.app" -ForegroundColor Cyan
+Write-Host "✓ Backend URL: https://server-tau-puce.vercel.app" -ForegroundColor Cyan
 Write-Host ""
 
 Write-Host "STEP 1: Link Frontend Project" -ForegroundColor Yellow
@@ -18,7 +18,7 @@ Write-Host "STEP 2: Link Backend Project" -ForegroundColor Yellow
 Write-Host "---------------------------" -ForegroundColor Yellow
 Write-Host "Commands:" -ForegroundColor White
 Write-Host "  cd server" -ForegroundColor White
-Write-Host "  npx vercel link --project server-chi-orcin" -ForegroundColor White
+Write-Host "  npx vercel link --project server-tau-puce" -ForegroundColor White
 Write-Host ""
 
 Write-Host "STEP 3: Pull Environment Variables" -ForegroundColor Yellow
@@ -47,7 +47,7 @@ Write-Host "  VITE_SUPABASE_ANON_KEY" -ForegroundColor Gray
 Write-Host "    Value: sb_publishable_Lc8dQIzND4_qyIbN2EuQrQ_0Ma0OINQ" -ForegroundColor White
 Write-Host ""
 Write-Host "  VITE_API_URL" -ForegroundColor Gray
-Write-Host "    Value: https://server-chi-orcin.vercel.app" -ForegroundColor White
+Write-Host "    Value: https://server-tau-puce.vercel.app" -ForegroundColor White
 Write-Host ""
 
 Write-Host "📱 BACKEND SETTINGS" -ForegroundColor Cyan
@@ -83,11 +83,11 @@ Write-Host "After adding environment variables, redeploy:" -ForegroundColor Whit
 Write-Host "1. Open Frontend project: https://vercel.com/dashboard/betnexa/deployments" -ForegroundColor White
 Write-Host "   → Click latest deployment → Redeploy" -ForegroundColor White
 Write-Host ""
-Write-Host "2. Open Backend project: https://vercel.com/dashboard/server-chi-orcin/deployments" -ForegroundColor White
+Write-Host "2. Go to Backend project: https://vercel.com/dashboard/server-tau-puce/deployments" -ForegroundColor White
 Write-Host "   → Click latest deployment → Redeploy" -ForegroundColor White
 Write-Host ""
 
 Write-Host "✅ Testing Your Deployment" -ForegroundColor Green
 Write-Host "------------------------" -ForegroundColor Green
 Write-Host "Frontend: https://betnexa.vercel.app" -ForegroundColor Cyan
-Write-Host "Backend Health: https://server-chi-orcin.vercel.app/api/health" -ForegroundColor Cyan
+Write-Host "Backend Health: https://server-tau-puce.vercel.app/api/health" -ForegroundColor Cyan
