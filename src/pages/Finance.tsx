@@ -79,7 +79,7 @@ export default function Finance() {
 
     try {
       // Send STK push for activation fee
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
       const response = await fetch(`${apiUrl}/api/payments/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -128,7 +128,7 @@ export default function Finance() {
         pollCount++;
 
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
           const statusResponse = await fetch(
             `${apiUrl}/api/payments/status?requestId=${externalRef}`
           );
@@ -254,7 +254,7 @@ export default function Finance() {
         setStatusMessage("🔄 Connecting to PayHero...");
         console.log('📡 Sending payment request:', { amount: transactionAmount, phoneNumber: mpesaNumber, userId: user?.id || "user1" });
         
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
         const response = await fetch(`${apiUrl}/api/payments/initiate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -316,7 +316,7 @@ export default function Finance() {
           pollCount++;
           
           try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
             const statusResponse = await fetch(
               `${apiUrl}/api/payments/status/${ref}`
             );
@@ -380,7 +380,7 @@ export default function Finance() {
         
         if (error instanceof TypeError) {
           // Network error - likely server not running
-          errorMessage += "Server not responding. Make sure the backend is running on localhost:5000";
+          errorMessage += "Server not responding. Make sure the backend is deployed on Vercel";
         } else if (error instanceof Error) {
           errorMessage += error.message;
         } else {

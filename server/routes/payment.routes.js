@@ -142,7 +142,7 @@ router.post('/initiate', async (req, res) => {
 
     // Generate reference
     const externalReference = `DEP-${Date.now()}-${userId}`;
-    const callbackUrl = `${process.env.CALLBACK_URL || 'http://localhost:5000'}/api/callbacks/payhero`;
+    const callbackUrl = `${process.env.CALLBACK_URL || 'https://server-chi-orcin.vercel.app'}/api/callbacks/payhero`;
 
     console.log('🔄 Initiating payment with PayHero...');
     console.log('📞 Phone:', phoneNumber);

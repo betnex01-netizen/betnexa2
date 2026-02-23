@@ -55,7 +55,7 @@ class BalanceSyncService {
    */
   async fetchBalance(userId: string): Promise<number | null> {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
       const response = await fetch(
         `${apiUrl}/api/payments/user-balance/${userId}`
       );
