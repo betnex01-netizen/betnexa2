@@ -33,11 +33,13 @@ app.use('/api/admin', AdminRoutes);
 // Health check
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  console.log('🏥 Health check requested');
   res.json({
     status: 'Server is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    version: '1.0.0'
+    version: '1.0.1',
+    supabase: process.env.SUPABASE_URL ? 'configured' : 'NOT configured',
   });
 });
 
