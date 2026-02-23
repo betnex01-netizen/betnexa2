@@ -9,8 +9,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
-app.use(express.json());s://server-chi-orcin.vercel.app', 'http
+app.use(cors({
+  origin: ['https://betnexa.vercel.app', 'https://server-chi-orcin.vercel.app', 'http://localhost:8080', 'http://localhost:3000'],
+  credentials: true
+}));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Request logging
