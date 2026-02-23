@@ -12,7 +12,7 @@ import { useBets } from "@/context/BetContext";
 export default function Signup() {
   const navigate = useNavigate();
   const { users, addUser } = useUserManagement();
-  const { login } = useUser();
+  const { login, signupWithSupabase } = useUser();
   const { syncBalance } = useBets();
 
   const [formData, setFormData] = useState({
@@ -75,40 +75,86 @@ export default function Signup() {
 
     setIsSubmitting(true);
 
-    setTimeout(() => {
-      const newUser = {
-        id: `user${users.length + 1}`,
+    try {
+      // First try to save to Supabase database
+      const newUser = await signupWithSupabase({
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        username: formData.name
-          .toLowerCase()
-          .replace(/\s+/g, "_")
-          .substring(0, 20),
-        verified: true,
-        level: "Bronze Member",
-        joinDate: new Date().toISOString().split("T")[0],
-        totalBets: 0,
-        totalWinnings: 0,
-        accountBalance: 0,
-        withdrawalActivated: false,
-        withdrawalActivationDate: null,
-      };
+      });
 
-      addUser(newUser);
-      login(newUser);
+      if (newUser) {
+        // Successfully registered in database
+        login(newUser);
+        
+        // Also add to local context for immediate use
+        const localUser = {
+          id: newUser.id,
+          name: newUser.name,
+          email: newUser.email,
+          phone: newUser.phone,
+          password: newUser.password,
+          username: newUser.username,
+          verified: newUser.verified,
+          level: newUser.level,
+          joinDate: newUser.joinDate,
+          totalBets: newUser.totalBets,
+          totalWinnings: newUser.totalWinnings,
+          accountBalance: newUser.accountBalance,
+          withdrawalActivated: newUser.withdrawalActivated,
+          withdrawalActivationDate: newUser.withdrawalActivationDate,
+        };
+        addUser(localUser);
+        syncBalance(newUser.accountBalance);
 
-      // Sync balance
-      syncBalance(newUser.accountBalance);
+        setSuccess(true);
+        setIsSubmitting(false);
 
-      setSuccess(true);
+        setTimeout(() => {
+          navigate("/");
+        }, 2000);
+      } else {
+        // Fallback to local registration if database fails
+        console.warn('Database signup failed, using local registration');
+        const localUser = {
+          id: `user${users.length + 1}`,
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password,
+          username: formData.name
+            .toLowerCase()
+            .replace(/\s+/g, "_")
+            .substring(0, 20),
+          verified: false,
+          level: "Bronze Member",
+          joinDate: new Date().toISOString().split("T")[0],
+          totalBets: 0,
+          totalWinnings: 0,
+          accountBalance: 0,
+          withdrawalActivated: false,
+          withdrawalActivationDate: null,
+        };
+
+        addUser(localUser);
+        login(localUser);
+        syncBalance(0);
+
+        setSuccess(true);
+        setIsSubmitting(false);
+
+        setTimeout(() => {
+          navigate("/");
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      setErrors({
+        form: 'Signup failed. Please try again.',
+      });
       setIsSubmitting(false);
-
-      setTimeout(() => {
-        navigate("/");
-      }, 2000);
-    }, 1500);
+    }
   };
 
   return (
