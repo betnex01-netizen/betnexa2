@@ -139,9 +139,9 @@ router.post('/games', checkAdmin, async (req, res) => {
       awayOdds,
       time,
       status,
-      markets,
     } = req.body;
 
+    console.log('🔍 Validating request parameters');
     if (!homeTeam || !awayTeam) {
       console.error('❌ Missing required fields');
       return res.status(400).json({ 
@@ -149,7 +149,9 @@ router.post('/games', checkAdmin, async (req, res) => {
         error: 'Home and away teams required' 
       });
     }
+    console.log('✅ Parameters valid');
 
+    console.log('📊 Building game data object');
     const gameData = {
       game_id: `g${Date.now()}`,
       league: league || 'General',
@@ -161,9 +163,9 @@ router.post('/games', checkAdmin, async (req, res) => {
       time: time || new Date().toISOString(),
       status: status || 'upcoming',
     };
+    console.log('📊 Game data object:', JSON.stringify(gameData, null, 2));
 
-    console.log('📊 Game data:', gameData);
-
+    console.log('🗄️  Inserting game into database');
     const { data: game, error } = await supabase
       .from('games')
       .insert([gameData])
@@ -171,7 +173,11 @@ router.post('/games', checkAdmin, async (req, res) => {
       .single();
 
     if (error) {
-      console.error('❌ Database insert failed:', error.message, error.code, error.details);
+      console.error('❌ Database insert failed:');
+      console.error('   Message:', error.message);
+      console.error('   Code:', error.code);
+      console.error('   Details:', error.details);
+      console.error('   Full error:', JSON.stringify(error));
       return res.status(400).json({ 
         success: false,
         error: 'Failed to create game in database',
@@ -180,10 +186,19 @@ router.post('/games', checkAdmin, async (req, res) => {
       });
     }
 
+    if (!game) {
+      console.error('❌ Database insert returned no data');
+      return res.status(400).json({ 
+        success: false,
+        error: 'Game creation failed - no data returned' 
+      });
+    }
+
     console.log('✅ Game created:', game.id || game.game_id);
 
     // Try to log admin action, but don't fail if it doesn't work
     try {
+      console.log('📝 Logging admin action');
       await supabase.from('admin_logs').insert([{
         admin_id: req.user.id,
         action: 'create_game',
@@ -193,17 +208,27 @@ router.post('/games', checkAdmin, async (req, res) => {
         description: `Created game: ${homeTeam} vs ${awayTeam}`,
         created_at: new Date().toISOString(),
       }]);
+      console.log('✅ Admin action logged');
     } catch (logError) {
       console.warn('⚠️ Failed to log admin action:', logError.message);
     }
 
-    res.json({ success: true, game });
+    console.log('📤 Sending success response');
+    res.status(200).json({ success: true, game });
   } catch (error) {
-    console.error('❌ Create game error:', error);
+    console.error('❌ Create game error - caught in main catch block');
+    console.error('   Error name:', error.name);
+    console.error('   Error message:', error.message);
+    console.error('   Error stack:', error.stack);
+    console.error('   Error toString:', String(error));
+    console.error('   Full error object:', JSON.stringify(error));
+    
     res.status(500).json({ 
       success: false,
       error: 'Server error creating game',
-      details: error.message || String(error)
+      message: error.message || String(error),
+      name: error.name,
+      details: error.details || error.toString()
     });
   }
 });
