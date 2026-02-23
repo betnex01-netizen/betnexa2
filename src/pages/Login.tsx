@@ -49,8 +49,8 @@ export default function Login() {
     try {
       // Check for admin credentials first
       if (formData.phone === "0714945142" && formData.password === "4306") {
-        // Admin login
-        login({
+        // Admin login (no session needed for admin)
+        await login({
           id: "admin",
           name: "Admin",
           email: "admin@betnexa.com",
@@ -74,11 +74,11 @@ export default function Login() {
       }
 
       // Try Supabase login first (for users registered in database)
+      // loginWithSupabase already calls login() internally and creates a session
       const dbUser = await loginWithSupabase(formData.phone, formData.password);
       
       if (dbUser) {
-        // Successfully logged in from database
-        login(dbUser);
+        // Successfully logged in from database with session created
         syncBalance(dbUser.accountBalance);
         setIsSubmitting(false);
         navigate("/");
@@ -98,8 +98,8 @@ export default function Login() {
         return;
       }
 
-      // Login with local user
-      login({
+      // Login with local user (with session)
+      await login({
         id: localUser.id,
         name: localUser.name,
         email: localUser.email,

@@ -85,9 +85,7 @@ export default function Signup() {
       });
 
       if (newUser) {
-        // Successfully registered in database
-        login(newUser);
-        
+        // Successfully registered in database with session created
         // Also add to local context for immediate use
         const localUser = {
           id: newUser.id,
@@ -115,9 +113,6 @@ export default function Signup() {
           navigate("/");
         }, 2000);
       } else {
-        // Fallback to local registration if database fails
-        console.warn('Database signup failed, using local registration');
-        const localUser = {
           id: `user${users.length + 1}`,
           name: formData.name,
           email: formData.email,

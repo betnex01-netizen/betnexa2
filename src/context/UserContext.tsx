@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { sessionService } from "@/services/sessionService";
 
 export interface UserProfile {
   id: string;
@@ -22,9 +23,10 @@ export interface UserProfile {
 interface UserContextType {
   user: UserProfile | null;
   isLoggedIn: boolean;
+  sessionId: string | null;
   updateUser: (userData: Partial<UserProfile>) => void;
-  login: (userData: UserProfile) => void;
-  logout: () => void;
+  login: (userData: UserProfile) => Promise<void>;
+  logout: () => Promise<void>;
   loginWithSupabase: (phone: string, password: string) => Promise<UserProfile | null>;
   signupWithSupabase: (userData: any) => Promise<UserProfile | null>;
 }
@@ -56,32 +58,80 @@ const DEFAULT_USER: UserProfile = {
 export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  // Load user from localStorage on mount
+  // Load user and verify session on mount
   useEffect(() => {
-    const savedUser = localStorage.getItem('betnexa_user');
-    if (savedUser) {
-      try {
-        const userData = JSON.parse(savedUser);
-        setUser(userData);
-        setIsLoggedIn(true);
-      } catch (error) {
-        console.error('Failed to parse saved user:', error);
-        localStorage.removeItem('betnexa_user');
+    const initializeAuth = async () => {
+      const savedUser = localStorage.getItem('betnexa_user');
+      const savedSession = localStorage.getItem('betnexa_session');
+      
+      if (savedUser && savedSession) {
+        try {
+          const userData = JSON.parse(savedUser);
+          const sessionData = JSON.parse(savedSession);
+          
+          // Verify session is still valid
+          const currentSession = sessionService.getCurrentSession();
+          if (currentSession) {
+            setUser(userData);
+            setSessionId(currentSession.sessionId);
+            setIsLoggedIn(true);
+            
+            // Update session activity
+            await sessionService.updateSessionActivity(currentSession.sessionId);
+          } else {
+            // Session expired, clear auth
+            localStorage.removeItem('betnexa_user');
+            localStorage.removeItem('betnexa_session');
+          }
+        } catch (error) {
+          console.error('Failed to initialize auth:', error);
+          localStorage.removeItem('betnexa_user');
+          localStorage.removeItem('betnexa_session');
+        }
       }
-    }
+    };
+    
+    initializeAuth();
   }, []);
 
-  const login = (userData: UserProfile) => {
-    setUser(userData);
-    setIsLoggedIn(true);
-    localStorage.setItem('betnexa_user', JSON.stringify(userData));
+  const login = async (userData: UserProfile) => {
+    try {
+      // Create session for this device
+      const session = await sessionService.createSession(userData.id);
+      
+      if (session) {
+        setUser(userData);
+        setSessionId(session.sessionId);
+        setIsLoggedIn(true);
+        localStorage.setItem('betnexa_user', JSON.stringify(userData));
+        localStorage.setItem('betnexa_session', JSON.stringify(session));
+        console.log(`✅ Login successful on device: ${session.deviceName}`);
+      } else {
+        throw new Error('Failed to create session');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      throw error;
+    }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    localStorage.removeItem('betnexa_user');
+  const logout = async () => {
+    try {
+      // Clear session from database if available
+      if (sessionId) {
+        await sessionService.clearSession();
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
+      setSessionId(null);
+      setIsLoggedIn(false);
+      localStorage.removeItem('betnexa_user');
+      localStorage.removeItem('betnexa_session');
+    }
   };
 
   const updateUser = (userData: Partial<UserProfile>) => {
@@ -110,7 +160,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      login(data.user);
+      // Create session for this device
+      await login(data.user);
       return data.user;
     } catch (error) {
       console.error('Login error:', error);
@@ -127,7 +178,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: userData.username,
+          username: userData.username || userData.name,
           email: userData.email,
           phone: userData.phone,
           password: userData.password,
@@ -141,7 +192,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      login(data.user);
+      // Create session for this device
+      await login(data.user);
       return data.user;
     } catch (error) {
       console.error('Signup error:', error);
@@ -154,6 +206,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         isLoggedIn,
+        sessionId,
         updateUser,
         login,
         logout,
