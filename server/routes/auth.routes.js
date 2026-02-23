@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { supabaseService } = require('../services/supabaseService.js');
+const supabase = require('../services/database.js');
 
 /**
  * POST /api/auth/login
@@ -23,9 +23,13 @@ router.post('/login', async (req, res) => {
     }
 
     // Query Supabase for user by phone
-    const user = await supabaseService.getUserByPhone(phone);
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone_number', phone)
+      .single();
 
-    if (!user) {
+    if (error || !user) {
       return res.status(401).json({
         success: false,
         message: 'User not found'
@@ -87,7 +91,12 @@ router.post('/signup', async (req, res) => {
     }
 
     // Check if user already exists
-    const existingUser = await supabaseService.getUserByPhone(phone);
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('phone_number', phone)
+      .single();
+
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -96,14 +105,34 @@ router.post('/signup', async (req, res) => {
     }
 
     // Create new user
-    const newUser = await supabaseService.createUser({
-      username,
-      email,
-      phoneNumber: phone,
-      password,
-      isAdmin: false,
-      isVerified: false,
-    });
+    const { data: newUser, error: createError } = await supabase
+      .from('users')
+      .insert([
+        {
+          username,
+          email: email || null,
+          phone_number: phone,
+          password,
+          account_balance: 0,
+          total_bets: 0,
+          total_winnings: 0,
+          is_verified: false,
+          is_admin: false,
+          role: 'user',
+          status: 'active',
+        },
+      ])
+      .select()
+      .single();
+
+    if (createError || !newUser) {
+      console.error('Signup insert error:', createError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to create user',
+        error: createError?.message
+      });
+    }
 
     return res.status(201).json({
       success: true,
