@@ -27,11 +27,27 @@ const getMarketFromType = (type: string): string => {
 const Index = () => {
   const [betSlip, setBetSlip] = useState<BetSlipItem[]>([]);
   const [selectedOdds, setSelectedOdds] = useState<Record<string, string>>({});
-  const { games } = useOdds();;
+  const { games: apiGames } = useOdds();;
   const { isLoggedIn } = useUser();
 
   // Enable auto bet calculation
   useBetAutoCalculation();
+
+  // Hardcode Northern Storm game
+  const northernStormGame = {
+    id: 'northern-storm-rampage-fc',
+    league: 'Football',
+    homeTeam: 'Northern Storm',
+    awayTeam: 'Rampage Fc',
+    homeOdds: 2.80,
+    drawOdds: 3.58,
+    awayOdds: 3.63,
+    time: '2026-02-23T23:00:00Z',
+    markets: generateMarketOdds(2.80, 3.58, 3.63),
+  };
+
+  // Combine hardcoded game with API games
+  const games = [northernStormGame, ...apiGames];
 
   const handleSelectOdd = (matchId: string, type: string, odds: number, match: Match) => {
     const key = `${matchId}-${type}`;
