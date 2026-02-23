@@ -18,7 +18,7 @@ async function checkAdmin(req, res, next) {
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, is_admin, role')
-      .eq('phone', phone)
+      .eq('phone_number', phone)
       .single();
 
     if (userError || !user) {
