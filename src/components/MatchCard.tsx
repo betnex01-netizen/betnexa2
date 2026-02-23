@@ -135,7 +135,7 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
 
   const OddBtn = ({ label, value, type }: { label: string; value: number; type: string }) => (
     <button
-      onClick={() => !displayGame.status === "live" && handleSelect(type, value)}
+      onClick={() => displayGame.status !== "live" && handleSelect(type, value)}
       disabled={displayGame.status === "live"}
       className={`odds-btn text-center ${selectedOdd === `${match.id}-${type}` ? "selected" : ""} ${
         displayGame.status === "live" ? "opacity-50 cursor-not-allowed" : ""
