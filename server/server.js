@@ -5,6 +5,7 @@ const https = require('https');
 const PaymentRoutes = require('./routes/payment.routes.js');
 const CallbackRoutes = require('./routes/callback.routes.js');
 const AuthRoutes = require('./routes/auth.routes.js');
+const AdminRoutes = require('./routes/admin.routes.js');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -27,6 +28,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', AuthRoutes);
 app.use('/api/payments', PaymentRoutes);
 app.use('/api/callbacks', CallbackRoutes);
+app.use('/api/admin', AdminRoutes);
 
 // Health check
 // Health check endpoint

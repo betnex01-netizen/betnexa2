@@ -89,19 +89,38 @@ const AdminPortal = () => {
     return () => clearInterval(interval);
   }, [games, updateGame]);
 
-  const handleAdminActivateWithdrawal = (userId: string, userName: string) => {
+  const handleAdminActivateWithdrawal = async (userId: string, userName: string) => {
     setActivatingUserId(userId);
     
-    // Simulate activation process
-    setTimeout(() => {
-      updateUser(userId, {
-        withdrawalActivated: true,
-        withdrawalActivationDate: new Date().toISOString()
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/users/${userId}/activate-withdrawal`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          withdrawalId: `withdrawal-${userId}-${Date.now()}`
+        })
       });
-      
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        updateUser(userId, {
+          withdrawalActivated: true,
+          withdrawalActivationDate: new Date().toISOString()
+        });
+        alert(`✅ Withdrawal activated for ${userName}`);
+      } else {
+        alert(`Error: ${data.error || 'Failed to activate withdrawal'}`);
+      }
+    } catch (error) {
+      console.error('Error activating withdrawal:', error);
+      alert('Failed to activate withdrawal');
+    } finally {
       setActivatingUserId(null);
-      alert(`✅ Withdrawal activated for ${userName}`);
-    }, 1500);
+    }
   };
 
   const handleDeleteUser = async (userId: string, userName: string) => {
@@ -140,34 +159,90 @@ const AdminPortal = () => {
     }
   };
 
-  const addGameHandler = () => {
+  const addGameHandler = async () => {
     if (!newGame.homeTeam || !newGame.awayTeam) return;
+    
     const h = parseFloat(newGame.homeOdds) || 2.0;
     const d = parseFloat(newGame.drawOdds) || 3.0;
     const a = parseFloat(newGame.awayOdds) || 3.0;
     const markets = generateMarketOdds(h, d, a);
-    const game: GameOdds = {
-      id: `g${Date.now()}`,
-      league: newGame.league,
-      homeTeam: newGame.homeTeam,
-      awayTeam: newGame.awayTeam,
-      homeOdds: h,
-      drawOdds: d,
-      awayOdds: a,
-      time: newGame.time,
-      status: newGame.status,
-      markets,
-    };
-    addGame(game);
-    setNewGame({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", status: "upcoming" });
-    setShowAddGame(false);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          league: newGame.league,
+          homeTeam: newGame.homeTeam,
+          awayTeam: newGame.awayTeam,
+          homeOdds: h,
+          drawOdds: d,
+          awayOdds: a,
+          time: newGame.time,
+          status: newGame.status,
+          markets
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Add game to local context for immediate UI update
+        const gameData: GameOdds = {
+          id: data.game.game_id,
+          league: data.game.league,
+          homeTeam: data.game.home_team,
+          awayTeam: data.game.away_team,
+          homeOdds: data.game.home_odds,
+          drawOdds: data.game.draw_odds,
+          awayOdds: data.game.away_odds,
+          time: data.game.scheduled_time,
+          status: data.game.status,
+          markets: data.game.markets,
+        };
+        addGame(gameData);
+        setNewGame({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", status: "upcoming" });
+        setShowAddGame(false);
+        alert("✅ Game added successfully!");
+      } else {
+        alert(`Error: ${data.error || 'Failed to add game'}`);
+      }
+    } catch (error) {
+      console.error('Error adding game:', error);
+      alert('Failed to add game');
+    }
   };
 
-  const regenerateOdds = (id: string) => {
+  const regenerateOdds = async (id: string) => {
     const game = games.find((g) => g.id === id);
-    if (game) {
+    if (!game) return;
+
+    try {
       const newMarkets = generateMarketOdds(game.homeOdds, game.drawOdds, game.awayOdds);
-      updateGameMarkets(id, newMarkets);
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${id}/markets`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          markets: newMarkets
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateGameMarkets(id, newMarkets);
+        alert('✅ Odds regenerated successfully!');
+      } else {
+        alert(`Error: ${data.error || 'Failed to regenerate odds'}`);
+      }
+    } catch (error) {
+      console.error('Error regenerating odds:', error);
+      alert('Failed to regenerate odds');
     }
   };
 
@@ -176,61 +251,172 @@ const AdminPortal = () => {
     setEditMarkets({ ...game.markets });
   };
 
-  const saveMarkets = (id: string) => {
+  const saveMarkets = async (id: string) => {
     if (!editMarkets) return;
-    updateGameMarkets(id, editMarkets);
-    setEditingGame(null);
-    setEditMarkets(null);
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${id}/markets`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          markets: editMarkets
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateGameMarkets(id, editMarkets);
+        setEditingGame(null);
+        setEditMarkets(null);
+        alert('✅ Markets updated successfully!');
+      } else {
+        alert(`Error: ${data.error || 'Failed to update markets'}`);
+      }
+    } catch (error) {
+      console.error('Error saving markets:', error);
+      alert('Failed to save markets');
+    }
   };
 
-  const removeGameHandler = (id: string) => removeGame(id);
+  const removeGameHandler = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this game?')) return;
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: loggedInUser.phone })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        removeGame(id);
+        alert('✅ Game deleted successfully!');
+      } else {
+        alert(`Error: ${data.error || 'Failed to delete game'}`);
+      }
+    } catch (error) {
+      console.error('Error deleting game:', error);
+      alert('Failed to delete game');
+    }
+  };
 
   // Live play functions
-  const startKickoff = (gameId: string) => {
+  const startKickoff = async (gameId: string) => {
     const game = games.find((g) => g.id === gameId);
-    if (game) {
-      updateGame(gameId, {
-        status: "live",
-        minute: 0,
-        homeScore: 0,
-        awayScore: 0,
-        isKickoffStarted: true,
-        gamePaused: false,
-        kickoffStartTime: Date.now(),
+    if (!game) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          status: "live",
+          minute: 0,
+          homeScore: 0,
+          awayScore: 0,
+          isKickoffStarted: true,
+          gamePaused: false,
+          kickoffStartTime: Date.now(),
+        })
       });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateGame(gameId, {
+          status: "live",
+          minute: 0,
+          homeScore: 0,
+          awayScore: 0,
+          isKickoffStarted: true,
+          gamePaused: false,
+          kickoffStartTime: Date.now(),
+        });
+      } else {
+        alert(`Error: ${data.error || 'Failed to start kickoff'}`);
+      }
+    } catch (error) {
+      console.error('Error starting kickoff:', error);
+      alert('Failed to start kickoff');
     }
   };
 
-  const pauseKickoff = (gameId: string) => {
+  const pauseKickoff = async (gameId: string) => {
     const game = games.find((g) => g.id === gameId);
-    if (game && game.minute !== undefined) {
-      const showHalftime = game.minute < 45;
-      updateGame(gameId, {
-        gamePaused: true,
-        kickoffPausedAt: Date.now(),
+    if (!game || game.minute === undefined) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          gamePaused: true,
+          kickoffPausedAt: Date.now(),
+        })
       });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateGame(gameId, {
+          gamePaused: true,
+          kickoffPausedAt: Date.now(),
+        });
+      } else {
+        alert(`Error: ${data.error || 'Failed to pause game'}`);
+      }
+    } catch (error) {
+      console.error('Error pausing game:', error);
+      alert('Failed to pause game');
     }
   };
 
-  const resumeKickoff = (gameId: string) => {
+  const resumeKickoff = async (gameId: string) => {
     const game = games.find((g) => g.id === gameId);
-    if (game && game.kickoffStartTime !== undefined && game.kickoffPausedAt !== undefined) {
-      // Calculate pause duration and adjust kickoff start time
+    if (!game || game.kickoffStartTime === undefined || game.kickoffPausedAt === undefined) return;
+
+    try {
       const pauseDuration = Date.now() - game.kickoffPausedAt;
       const newKickoffStartTime = game.kickoffStartTime + pauseDuration;
-      
-      updateGame(gameId, {
-        gamePaused: false,
-        isKickoffStarted: true,
-        kickoffStartTime: newKickoffStartTime,
-        kickoffPausedAt: undefined,
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          gamePaused: false,
+          isKickoffStarted: true,
+          kickoffStartTime: newKickoffStartTime,
+          kickoffPausedAt: undefined,
+        })
       });
-    } else {
-      // Fallback if timestamps are missing
-      updateGame(gameId, {
-        gamePaused: false,
-        isKickoffStarted: true,
-      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateGame(gameId, {
+          gamePaused: false,
+          isKickoffStarted: true,
+          kickoffStartTime: newKickoffStartTime,
+          kickoffPausedAt: undefined,
+        });
+      } else {
+        alert(`Error: ${data.error || 'Failed to resume game'}`);
+      }
+    } catch (error) {
+      console.error('Error resuming game:', error);
+      alert('Failed to resume game');
     }
   };
 
@@ -269,35 +455,105 @@ const AdminPortal = () => {
     };
   };
 
-  const updateLiveScore = (gameId: string, homeScore: number, awayScore: number) => {
+  const updateLiveScore = async (gameId: string, homeScore: number, awayScore: number) => {
     const game = games.find((g) => g.id === gameId);
-    if (game) {
+    if (!game) return;
+
+    try {
       const newOdds = adjustOddsBasedOnScore(game.homeOdds, game.drawOdds, game.awayOdds, homeScore, awayScore);
       const newMarkets = generateMarketOdds(newOdds.homeOdds, newOdds.drawOdds, newOdds.awayOdds);
-      updateGame(gameId, {
-        homeScore,
-        awayScore,
-        homeOdds: newOdds.homeOdds,
-        drawOdds: newOdds.drawOdds,
-        awayOdds: newOdds.awayOdds,
-        markets: newMarkets,
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/score`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          homeScore,
+          awayScore,
+          minute: game.minute,
+          status: game.status
+        })
       });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state
+        updateGame(gameId, {
+          homeScore,
+          awayScore,
+          homeOdds: newOdds.homeOdds,
+          drawOdds: newOdds.drawOdds,
+          awayOdds: newOdds.awayOdds,
+          markets: newMarkets,
+        });
+      } else {
+        alert(`Error: ${data.error || 'Failed to update score'}`);
+      }
+    } catch (error) {
+      console.error('Error updating score:', error);
+      alert('Failed to update score');
     }
   };
 
-  const endGame = (gameId: string) => {
+  const endGame = async (gameId: string) => {
     const game = games.find((g) => g.id === gameId);
-    if (game) {
-      updateGame(gameId, {
-        status: "finished",
-        isKickoffStarted: false,
-        gamePaused: false,
+    if (!game) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          status: "finished",
+          isKickoffStarted: false,
+          gamePaused: false,
+        })
       });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateGame(gameId, {
+          status: "finished",
+          isKickoffStarted: false,
+          gamePaused: false,
+        });
+      } else {
+        alert(`Error: ${data.error || 'Failed to end game'}`);
+      }
+    } catch (error) {
+      console.error('Error ending game:', error);
+      alert('Failed to end game');
     }
   };
 
-  const markGameLive = (gameId: string) => {
-    updateGame(gameId, { status: "live" });
+  const markGameLive = async (gameId: string) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          status: "live"
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        updateGame(gameId, { status: "live" });
+      } else {
+        alert(`Error: ${data.error || 'Failed to mark game as live'}`);
+      }
+    } catch (error) {
+      console.error('Error marking game live:', error);
+      alert('Failed to mark game as live');
+    }
   };
 
   const settleBetBySelections = (betId: string) => {
@@ -763,18 +1019,46 @@ const AdminPortal = () => {
                             <Button
                               size="sm"
                               variant="hero"
-                              onClick={() => {
-                                updateUser(user.id, editingUserData);
-                                // If the logged-in user's data was updated, sync it to BetContext and UserContext
-                                if (user.id === loggedInUser.id) {
-                                  if (editingUserData.accountBalance !== undefined) {
-                                    syncBalance(editingUserData.accountBalance);
+                              onClick={async () => {
+                                try {
+                                  // If balance is being edited, call the backend API
+                                  if (editingUserData.accountBalance !== undefined && editingUserData.accountBalance !== user.accountBalance) {
+                                    const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+                                    const response = await fetch(`${apiUrl}/api/admin/users/${user.id}/balance`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        phone: loggedInUser.phone,
+                                        balance: editingUserData.accountBalance,
+                                        reason: 'Admin adjustment'
+                                      })
+                                    });
+
+                                    const data = await response.json();
+
+                                    if (!data.success) {
+                                      alert(`Error: ${data.error || 'Failed to update balance'}`);
+                                      return;
+                                    }
                                   }
-                                  // Sync all edited fields to UserContext
-                                  updateCurrentUser(editingUserData);
+
+                                  // Update local state
+                                  updateUser(user.id, editingUserData);
+                                  // If the logged-in user's data was updated, sync it to BetContext and UserContext
+                                  if (user.id === loggedInUser.id) {
+                                    if (editingUserData.accountBalance !== undefined) {
+                                      syncBalance(editingUserData.accountBalance);
+                                    }
+                                    // Sync all edited fields to UserContext
+                                    updateCurrentUser(editingUserData);
+                                  }
+                                  setEditingUserId(null);
+                                  setEditingUserData({});
+                                  alert('✅ User data updated successfully!');
+                                } catch (error) {
+                                  console.error('Error saving user data:', error);
+                                  alert('Failed to save user data');
                                 }
-                                setEditingUserId(null);
-                                setEditingUserData({});
                               }}
                             >
                               <Save className="mr-1 h-3 w-3" /> Save
