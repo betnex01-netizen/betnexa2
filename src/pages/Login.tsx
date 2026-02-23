@@ -12,7 +12,7 @@ import { useBets } from "@/context/BetContext";
 export default function Login() {
   const navigate = useNavigate();
   const { users } = useUserManagement();
-  const { login } = useUser();
+  const { login, loginWithSupabase } = useUser();
   const { syncBalance } = useBets();
 
   const [formData, setFormData] = useState({
@@ -46,8 +46,8 @@ export default function Login() {
     setIsSubmitting(true);
     setGlobalError("");
 
-    setTimeout(() => {
-      // Check for admin credentials
+    try {
+      // Check for admin credentials first
       if (formData.phone === "0714945142" && formData.password === "4306") {
         // Admin login
         login({
@@ -73,42 +73,59 @@ export default function Login() {
         return;
       }
 
-      // Find user by phone and password
-      const user = users.find(
+      // Try Supabase login first (for users registered in database)
+      const dbUser = await loginWithSupabase(formData.phone, formData.password);
+      
+      if (dbUser) {
+        // Successfully logged in from database
+        login(dbUser);
+        syncBalance(dbUser.accountBalance);
+        setIsSubmitting(false);
+        navigate("/");
+        return;
+      }
+
+      // Fallback to local user search if Supabase login fails
+      const localUser = users.find(
         (u) => u.phone === formData.phone && u.password === formData.password
       );
 
-      if (!user) {
-        setGlobalError("Invalid phone number or password");
+      if (!localUser) {
+        setGlobalError(
+          "Invalid phone number or password. Make sure you signed up first."
+        );
         setIsSubmitting(false);
         return;
       }
 
-      // Update current user and redirect
+      // Login with local user
       login({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        password: user.password,
-        username: user.username,
-        verified: user.verified,
-        level: user.level,
-        joinDate: user.joinDate,
-        totalBets: user.totalBets,
-        totalWinnings: user.totalWinnings,
-        accountBalance: user.accountBalance,
-        withdrawalActivated: user.withdrawalActivated || false,
-        withdrawalActivationDate: user.withdrawalActivationDate || null,
-        isAdmin: false,
+        id: localUser.id,
+        name: localUser.name,
+        email: localUser.email,
+        phone: localUser.phone,
+        password: localUser.password,
+        username: localUser.username,
+        verified: localUser.verified,
+        level: localUser.level,
+        joinDate: localUser.joinDate,
+        totalBets: localUser.totalBets,
+        totalWinnings: localUser.totalWinnings,
+        accountBalance: localUser.accountBalance,
+        withdrawalActivated: localUser.withdrawalActivated,
+        withdrawalActivationDate: localUser.withdrawalActivationDate,
       });
 
-      // Sync balance
-      syncBalance(user.accountBalance);
-
+      syncBalance(localUser.accountBalance);
       setIsSubmitting(false);
       navigate("/");
-    }, 1500);
+    } catch (error) {
+      console.error("Login error:", error);
+      setGlobalError(
+        "Login failed. Please check your credentials and try again."
+      );
+      setIsSubmitting(false);
+    }
   };
 
   return (
