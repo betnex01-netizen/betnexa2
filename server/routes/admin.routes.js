@@ -14,7 +14,7 @@ async function checkAdmin(req, res, next) {
     // Check if user is admin
     const { data: user } = await supabase
       .from('users')
-      .select('is_admin, role')
+      .select('id, is_admin, role')
       .eq('phone', phone)
       .single();
 
@@ -22,7 +22,7 @@ async function checkAdmin(req, res, next) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
-    req.user = { phone, is_admin: true };
+    req.user = { id: user.id, phone, is_admin: true };
     next();
   } catch (error) {
     console.error('Admin check error:', error);
@@ -91,9 +91,12 @@ router.post('/games', checkAdmin, async (req, res) => {
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'create_game',
-      details: { game_id: gameData.game_id, home_team: homeTeam, away_team: awayTeam },
+      target_type: 'game',
+      target_id: game.id,
+      changes: { home_team: homeTeam, away_team: awayTeam, game_id: gameData.game_id },
+      description: `Created game: ${homeTeam} vs ${awayTeam}`,
       created_at: new Date().toISOString(),
     }]);
 
@@ -138,9 +141,12 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'update_game',
-      details: { game_id: gameId, updates: sanitizedUpdates },
+      target_type: 'game',
+      target_id: gameId,
+      changes: sanitizedUpdates,
+      description: 'Updated game details',
       created_at: new Date().toISOString(),
     }]);
 
@@ -165,9 +171,11 @@ router.delete('/games/:gameId', checkAdmin, async (req, res) => {
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'delete_game',
-      details: { game_id: gameId },
+      target_type: 'game',
+      target_id: gameId,
+      description: 'Deleted game',
       created_at: new Date().toISOString(),
     }]);
 
@@ -203,9 +211,12 @@ router.put('/games/:gameId/score', checkAdmin, async (req, res) => {
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'update_score',
-      details: { game_id: gameId, home_score: homeScore, away_score: awayScore },
+      target_type: 'game',
+      target_id: gameId,
+      changes: { home_score: homeScore, away_score: awayScore, minute: minute },
+      description: `Updated score: ${homeScore}-${awayScore}`,
       created_at: new Date().toISOString(),
     }]);
 
@@ -233,9 +244,12 @@ router.put('/games/:gameId/markets', checkAdmin, async (req, res) => {
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'update_markets',
-      details: { game_id: gameId },
+      target_type: 'game',
+      target_id: gameId,
+      changes: { markets: Object.keys(markets).length + ' markets updated' },
+      description: 'Updated betting markets',
       created_at: new Date().toISOString(),
     }]);
 
@@ -283,19 +297,22 @@ router.put('/users/:userId/balance', checkAdmin, async (req, res) => {
     // Record balance history
     await supabase.from('balance_history').insert([{
       user_id: userId,
-      previous_balance: previousBalance,
-      new_balance: balance,
-      change_amount: balanceChange,
-      change_reason: reason || 'Admin adjustment',
-      changed_by: req.user.phone,
+      balance_before: previousBalance,
+      balance_after: balance,
+      change: balanceChange,
+      reason: reason || 'Admin adjustment',
+      created_by: req.user.phone,
       created_at: new Date().toISOString(),
     }]);
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'update_balance',
-      details: { user_id: userId, previous_balance: previousBalance, new_balance: balance, reason },
+      target_type: 'user',
+      target_id: userId,
+      changes: { previous_balance: previousBalance, new_balance: balance, change_amount: balanceChange },
+      description: `Balance changed from ${previousBalance} to ${balance}: ${reason}`,
       created_at: new Date().toISOString(),
     }]);
 
@@ -333,9 +350,12 @@ router.post('/payments/:paymentId/resolve', checkAdmin, async (req, res) => {
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'resolve_payment',
-      details: { payment_id: paymentId, status, notes },
+      target_type: 'payment',
+      target_id: paymentId,
+      changes: { payment_status: status, notes },
+      description: `Payment resolved with status: ${status}`,
       created_at: new Date().toISOString(),
     }]);
 
@@ -369,9 +389,12 @@ router.put('/users/:userId/activate-withdrawal', checkAdmin, async (req, res) =>
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
-      admin_phone: req.user.phone,
+      admin_id: req.user.id,
       action: 'activate_withdrawal',
-      details: { user_id: userId, withdrawal_id: withdrawalId },
+      target_type: 'user',
+      target_id: userId,
+      changes: { withdrawal_id: withdrawalId },
+      description: 'Withdrawal activated',
       created_at: new Date().toISOString(),
     }]);
 
