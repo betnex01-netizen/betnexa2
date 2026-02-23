@@ -254,7 +254,7 @@ export default function Finance() {
         setStatusMessage("🔄 Connecting to PayHero...");
         console.log('📡 Sending payment request:', { amount: transactionAmount, phoneNumber: mpesaNumber, userId: user?.id || "user1" });
         
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-chi-orcin.vercel.app';
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-t1loibt8a-nel-developers.vercel.app';
         const response = await fetch(`${apiUrl}/api/payments/initiate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
