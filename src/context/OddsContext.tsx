@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 export interface GameOdds {
   id: string;
@@ -27,12 +27,85 @@ interface OddsContextType {
   removeGame: (id: string) => void;
   getGame: (id: string) => GameOdds | undefined;
   updateGameMarkets: (id: string, markets: Record<string, number>) => void;
+  refreshGames: () => Promise<void>;
 }
 
 const OddsContext = createContext<OddsContextType | undefined>(undefined);
 
 export function OddsProvider({ children }: { children: ReactNode }) {
   const [games, setGames] = useState<GameOdds[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch games from database on component mount
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+        const response = await fetch(`${apiUrl}/api/admin/games`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.games)) {
+            // Transform database games to GameOdds format
+            const transformedGames: GameOdds[] = data.games.map((g: any) => ({
+              id: g.game_id || g.id,
+              league: g.league || '',
+              homeTeam: g.home_team,
+              awayTeam: g.away_team,
+              homeOdds: parseFloat(g.home_odds) || 2.0,
+              drawOdds: parseFloat(g.draw_odds) || 3.0,
+              awayOdds: parseFloat(g.away_odds) || 3.0,
+              time: g.scheduled_time || g.time || new Date().toISOString(),
+              status: g.status || 'upcoming',
+              markets: g.markets || {},
+              homeScore: g.home_score || 0,
+              awayScore: g.away_score || 0,
+              minute: g.minute || 0,
+            }));
+            setGames(transformedGames);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching games:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchGames();
+  }, []);
+
+  const refreshGames = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/games`);
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.games)) {
+          // Transform database games to GameOdds format
+          const transformedGames: GameOdds[] = data.games.map((g: any) => ({
+            id: g.game_id || g.id,
+            league: g.league || '',
+            homeTeam: g.home_team,
+            awayTeam: g.away_team,
+            homeOdds: parseFloat(g.home_odds) || 2.0,
+            drawOdds: parseFloat(g.draw_odds) || 3.0,
+            awayOdds: parseFloat(g.away_odds) || 3.0,
+            time: g.scheduled_time || g.time || new Date().toISOString(),
+            status: g.status || 'upcoming',
+            markets: g.markets || {},
+            homeScore: g.home_score || 0,
+            awayScore: g.away_score || 0,
+            minute: g.minute || 0,
+          }));
+          setGames(transformedGames);
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing games:', error);
+    }
+  };
 
   const addGame = (game: GameOdds) => {
     setGames((prev) => [...prev, game]);
@@ -58,7 +131,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
 
   return (
     <OddsContext.Provider
-      value={{ games, addGame, updateGame, removeGame, getGame, updateGameMarkets }}
+      value={{ games, addGame, updateGame, removeGame, getGame, updateGameMarkets, refreshGames }}
     >
       {children}
     </OddsContext.Provider>

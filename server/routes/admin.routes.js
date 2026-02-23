@@ -8,48 +8,67 @@ async function checkAdmin(req, res, next) {
   try {
     const phone = req.body.phone || req.query.phone;
     if (!phone) {
+      console.error('❌ Phone number required for admin check');
       return res.status(401).json({ error: 'Phone number required' });
     }
 
+    console.log(`🔍 Checking admin status for phone: ${phone}`);
+
     // Check if user is admin
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from('users')
       .select('id, is_admin, role')
       .eq('phone', phone)
       .single();
 
-    if (!user || !user.is_admin) {
+    if (userError || !user) {
+      console.error('❌ User not found or query error:', userError?.message || 'User not found');
+      return res.status(403).json({ error: 'User not found or not admin' });
+    }
+
+    if (!user.is_admin) {
+      console.error('❌ User is not admin:', phone);
       return res.status(403).json({ error: 'Admin access required' });
     }
 
+    console.log(`✅ Admin verified: ${phone}`);
     req.user = { id: user.id, phone, is_admin: true };
     next();
   } catch (error) {
-    console.error('Admin check error:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Admin check error:', error);
+    res.status(500).json({ error: 'Server error during admin check', details: error.message });
   }
 }
 
 // GET: Fetch all games
 router.get('/games', async (req, res) => {
   try {
+    console.log(`\n📊 Fetching all games...`);
+    
     const { data: games, error } = await supabase
       .from('games')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database query error:', error);
+      throw error;
+    }
+
+    console.log(`✅ Retrieved ${games?.length || 0} games`);
 
     res.json({ success: true, games });
   } catch (error) {
-    console.error('Get games error:', error);
-    res.status(500).json({ error: 'Failed to fetch games' });
+    console.error('❌ Get games error:', error);
+    res.status(500).json({ error: 'Failed to fetch games', details: error.message });
   }
 });
 
 // POST: Create a new game
 router.post('/games', checkAdmin, async (req, res) => {
   try {
+    console.log(`\n📝 Creating new game. Admin: ${req.user.phone}, Payload:`, req.body);
+    
     const {
       league,
       homeTeam,
@@ -63,6 +82,7 @@ router.post('/games', checkAdmin, async (req, res) => {
     } = req.body;
 
     if (!homeTeam || !awayTeam) {
+      console.error('❌ Missing required fields: homeTeam or awayTeam');
       return res.status(400).json({ error: 'Home and away teams required' });
     }
 
@@ -81,13 +101,20 @@ router.post('/games', checkAdmin, async (req, res) => {
       created_at: new Date().toISOString(),
     };
 
+    console.log(`📊 Game data prepared:`, gameData);
+
     const { data: game, error } = await supabase
       .from('games')
       .insert([gameData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Database insert error:', error);
+      throw error;
+    }
+
+    console.log(`✅ Game created successfully. ID: ${game.id}`);
 
     // Log admin action
     await supabase.from('admin_logs').insert([{
@@ -102,8 +129,8 @@ router.post('/games', checkAdmin, async (req, res) => {
 
     res.json({ success: true, game });
   } catch (error) {
-    console.error('Create game error:', error);
-    res.status(500).json({ error: 'Failed to create game' });
+    console.error('❌ Create game error:', error);
+    res.status(500).json({ error: 'Failed to create game', details: error.message });
   }
 });
 

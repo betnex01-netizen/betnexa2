@@ -30,7 +30,7 @@ const marketLabels: Record<string, string> = {
 const AdminPortal = () => {
   const { matches, updateScore, setFinalScore } = useMatches();
   const { bets, syncBalance, updateBetStatus } = useBets();
-  const { games, addGame, updateGame, removeGame, updateGameMarkets } = useOdds();
+  const { games, addGame, updateGame, removeGame, updateGameMarkets, refreshGames } = useOdds();
   const { users, updateUser, getAllUsers } = useUserManagement();
   const { user: loggedInUser, updateUser: updateCurrentUser } = useUser();
   const { getAllTransactions, updateTransactionStatus } = useTransactions();
@@ -206,12 +206,18 @@ const AdminPortal = () => {
         setNewGame({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", status: "upcoming" });
         setShowAddGame(false);
         alert("✅ Game added successfully!");
+        
+        // Refresh games to sync with all users
+        setTimeout(() => {
+          refreshGames();
+        }, 500);
       } else {
+        console.error('API Error:', data);
         alert(`Error: ${data.error || 'Failed to add game'}`);
       }
     } catch (error) {
       console.error('Error adding game:', error);
-      alert('Failed to add game');
+      alert('Failed to add game. Check console for details.');
     }
   };
 
