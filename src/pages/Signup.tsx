@@ -113,6 +113,9 @@ export default function Signup() {
           navigate("/");
         }, 2000);
       } else {
+        // Fallback to local registration if database fails
+        console.warn('Database signup failed, using local registration');
+        const localUser = {
           id: `user${users.length + 1}`,
           name: formData.name,
           email: formData.email,
