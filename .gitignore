@@ -31,3 +31,4 @@ dist-ssr
 server/.env
 pay/.env
 lipa/.env
+.env*.local

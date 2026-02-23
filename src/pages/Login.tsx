@@ -49,8 +49,8 @@ export default function Login() {
     try {
       // Check for admin credentials first
       if (formData.phone === "0714945142" && formData.password === "4306") {
-        // Admin login (no session needed for admin)
-        await login({
+        // Admin login - bypass session creation
+        const adminUser = {
           id: "admin",
           name: "Admin",
           email: "admin@betnexa.com",
@@ -66,8 +66,11 @@ export default function Login() {
           withdrawalActivated: false,
           withdrawalActivationDate: null,
           isAdmin: true,
-        });
+        };
 
+        // Store directly without session
+        localStorage.setItem('betnexa_user', JSON.stringify(adminUser));
+        
         setIsSubmitting(false);
         navigate("/muleiadmin");
         return;
