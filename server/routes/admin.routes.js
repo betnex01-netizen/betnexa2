@@ -204,6 +204,7 @@ router.post('/games', checkAdmin, async (req, res) => {
       awayOdds,
       time,
       status,
+      markets,  // Markets will be handled separately
     } = req.body;
 
     console.log('🔍 Validating request parameters');
@@ -217,6 +218,7 @@ router.post('/games', checkAdmin, async (req, res) => {
     console.log('✅ Parameters valid');
 
     console.log('📊 Building game data object');
+    // Only include fields that exist in the games table
     const gameData = {
       game_id: `g${Date.now()}`,
       league: league || 'General',
@@ -227,6 +229,7 @@ router.post('/games', checkAdmin, async (req, res) => {
       away_odds: parseFloat(awayOdds) || 3.0,
       time: time || new Date().toISOString(),
       status: status || 'upcoming',
+      // Note: markets field is stored separately in the markets table, not here
     };
     console.log('📊 Game data object:', JSON.stringify(gameData, null, 2));
 
@@ -260,6 +263,12 @@ router.post('/games', checkAdmin, async (req, res) => {
     }
 
     console.log('✅ Game created:', game.id || game.game_id);
+    console.log('📋 Game object structure:', {
+      id: game.id,
+      game_id: game.game_id,
+      home_team: game.home_team,
+      away_team: game.away_team,
+    });
 
     // Try to log admin action, but don't fail if it doesn't work
     try {
@@ -284,21 +293,46 @@ router.post('/games', checkAdmin, async (req, res) => {
     }
 
     console.log('📤 Sending success response');
-    res.status(200).json({ success: true, game });
+    // Send minimal response to avoid circular references
+    res.status(200).json({ 
+      success: true, 
+      game: {
+        id: game.id,
+        game_id: game.game_id,
+        league: game.league,
+        home_team: game.home_team,
+        away_team: game.away_team,
+        home_odds: game.home_odds,
+        draw_odds: game.draw_odds,
+        away_odds: game.away_odds,
+        status: game.status,
+        time: game.time,
+        created_at: game.created_at
+      }
+    });
   } catch (error) {
     console.error('❌ Create game error - caught in main catch block');
     console.error('   Error name:', error.name);
     console.error('   Error message:', error.message);
     console.error('   Error stack:', error.stack);
     console.error('   Error toString:', String(error));
-    console.error('   Full error object:', JSON.stringify(error));
+    
+    // Try to serialize error safely
+    let errorDetails = {};
+    try {
+      errorDetails = JSON.parse(JSON.stringify(error));
+    } catch (e) {
+      errorDetails = { message: error.message, name: error.name };
+    }
+    
+    console.error('❌ Full error object:', errorDetails);
     
     res.status(500).json({ 
       success: false,
       error: 'Server error creating game',
       message: error.message || String(error),
       name: error.name,
-      details: error.details || error.toString()
+      details: 'Check server logs for full error'
     });
   }
 });
