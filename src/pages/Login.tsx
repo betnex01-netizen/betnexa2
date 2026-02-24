@@ -74,15 +74,14 @@ export default function Login() {
       }
 
       // Fallback: Check for hardcoded admin credentials (legacy support)
-      if ((formData.phone === "0714945142" && formData.password === "4306") ||
-          (formData.phone === "0714945143" && formData.password === "4307")) {
+      if (formData.phone === "0714945142" && formData.password === "4306") {
         const adminUser = {
           id: `admin_${formData.phone}`,
-          name: formData.phone === "0714945142" ? "Mulei Admin" : "Mulei Admin 2",
-          email: formData.phone === "0714945142" ? "muleiadmin@betnexa.com" : "muleiadmin2@betnexa.com",
+          name: "Mulei Admin",
+          email: "muleiadmin@betnexa.com",
           phone: formData.phone,
           password: formData.password,
-          username: formData.phone === "0714945142" ? "muleiadmin" : "muleiadmin2",
+          username: "muleiadmin",
           verified: true,
           level: "Administrator",
           joinDate: new Date().toISOString().split('T')[0],
