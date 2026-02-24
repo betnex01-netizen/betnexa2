@@ -342,8 +342,7 @@ const AdminPortal = () => {
           homeScore: 0,
           awayScore: 0,
           isKickoffStarted: true,
-          gamePaused: false,
-          kickoffStartTime: Date.now(),
+          gamePaused: false
         })
       });
 
@@ -356,8 +355,7 @@ const AdminPortal = () => {
           homeScore: 0,
           awayScore: 0,
           isKickoffStarted: true,
-          gamePaused: false,
-          kickoffStartTime: Date.now(),
+          gamePaused: false
         });
         alert('✅ Kickoff started!');
       } else {
