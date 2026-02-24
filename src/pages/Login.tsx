@@ -47,16 +47,42 @@ export default function Login() {
     setGlobalError("");
 
     try {
-      // Check for admin credentials first
-      if (formData.phone === "0714945142" && formData.password === "4306") {
-        // Admin login - bypass session creation
+      // Try Supabase login first (for all users including admins registered in database)
+      // This supports both regular users and admin users from Supabase
+      const dbUser = await loginWithSupabase(formData.phone, formData.password);
+      
+      if (dbUser) {
+        // Check if user is admin in database
+        if (dbUser.isAdmin || dbUser.is_admin === true) {
+          // Admin login - store with admin flag
+          const adminUser = {
+            ...dbUser,
+            level: "Administrator",
+            isAdmin: true,
+          };
+          localStorage.setItem('betnexa_user', JSON.stringify(adminUser));
+          setIsSubmitting(false);
+          navigate("/muleiadmin");
+          return;
+        } else {
+          // Regular user login - create session
+          syncBalance(dbUser.accountBalance);
+          setIsSubmitting(false);
+          navigate("/");
+          return;
+        }
+      }
+
+      // Fallback: Check for hardcoded admin credentials (legacy support)
+      if ((formData.phone === "0714945142" && formData.password === "4306") ||
+          (formData.phone === "0714945143" && formData.password === "4307")) {
         const adminUser = {
-          id: "admin",
-          name: "Admin",
-          email: "admin@betnexa.com",
-          phone: "0714945142",
-          password: "4306",
-          username: "admin",
+          id: `admin_${formData.phone}`,
+          name: formData.phone === "0714945142" ? "Mulei Admin" : "Mulei Admin 2",
+          email: formData.phone === "0714945142" ? "muleiadmin@betnexa.com" : "muleiadmin2@betnexa.com",
+          phone: formData.phone,
+          password: formData.password,
+          username: formData.phone === "0714945142" ? "muleiadmin" : "muleiadmin2",
           verified: true,
           level: "Administrator",
           joinDate: new Date().toISOString().split('T')[0],
@@ -68,23 +94,9 @@ export default function Login() {
           isAdmin: true,
         };
 
-        // Store directly without session
         localStorage.setItem('betnexa_user', JSON.stringify(adminUser));
-        
         setIsSubmitting(false);
         navigate("/muleiadmin");
-        return;
-      }
-
-      // Try Supabase login first (for users registered in database)
-      // loginWithSupabase already calls login() internally and creates a session
-      const dbUser = await loginWithSupabase(formData.phone, formData.password);
-      
-      if (dbUser) {
-        // Successfully logged in from database with session created
-        syncBalance(dbUser.accountBalance);
-        setIsSubmitting(false);
-        navigate("/");
         return;
       }
 
