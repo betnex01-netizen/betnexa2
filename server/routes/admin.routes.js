@@ -440,6 +440,8 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
     const { gameId } = req.params;
     const updates = req.body;
 
+    console.log(`📝 Updating game: ${gameId}`);
+
     // Filter allowed fields
     const allowedFields = [
       'league', 'home_team', 'away_team', 'home_odds', 'draw_odds', 'away_odds',
@@ -457,14 +459,25 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
 
     sanitizedUpdates.updated_at = new Date().toISOString();
 
+    // Try to update by either UUID (id) or text game_id
     const { data: game, error } = await supabase
       .from('games')
       .update(sanitizedUpdates)
-      .eq('game_id', gameId)
+      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error updating game:', error.message);
+      throw error;
+    }
+
+    if (!game) {
+      console.error('❌ No game found for update:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    console.log(`✅ Game updated successfully`);
 
     // Log admin action (optional)
     try {
@@ -495,12 +508,20 @@ router.delete('/games/:gameId', checkAdmin, async (req, res) => {
   try {
     const { gameId } = req.params;
 
+    console.log(`🗑️  Deleting game: ${gameId}`);
+
+    // Try to delete by either UUID (id) or text game_id
     const { error } = await supabase
       .from('games')
       .delete()
-      .eq('game_id', gameId);
+      .or(`id.eq.${gameId},game_id.eq.${gameId}`);
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error deleting game:', error.message);
+      throw error;
+    }
+
+    console.log(`✅ Game deleted successfully`);
 
     // Log admin action (optional)
     try {
@@ -515,8 +536,8 @@ router.delete('/games/:gameId', checkAdmin, async (req, res) => {
 
     res.json({ success: true, message: 'Game deleted' });
   } catch (error) {
-    console.error('Delete game error:', error);
-    res.status(500).json({ error: 'Failed to delete game' });
+    console.error('❌ Delete game error:', error.message);
+    res.status(500).json({ error: 'Failed to delete game', details: error.message });
   }
 });
 
@@ -526,6 +547,8 @@ router.put('/games/:gameId/score', checkAdmin, async (req, res) => {
     const { gameId } = req.params;
     const { homeScore, awayScore, minute, status } = req.body;
 
+    console.log(`📝 Updating score for game: ${gameId}, score: ${homeScore}-${awayScore}, minute: ${minute}`);
+
     const updates = {
       home_score: homeScore,
       away_score: awayScore,
@@ -534,20 +557,30 @@ router.put('/games/:gameId/score', checkAdmin, async (req, res) => {
       updated_at: new Date().toISOString(),
     };
 
-    const { data: game, error } = await supabase
+    // Try to update by either UUID (id) or text game_id
+    let { data: game, error } = await supabase
       .from('games')
       .update(updates)
-      .eq('game_id', gameId)
+      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ Error updating game score:', error.message);
+      throw error;
+    }
+
+    if (!game) {
+      console.error('❌ No game found for score update:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    console.log(`✅ Game score updated: ${homeScore}-${awayScore}`);
 
     // Log admin action (optional)
     try {
       if (req.user.id && req.user.id !== 'unknown') {
-        // Note: gameId is text, not UUID, so we skip logging to avoid type errors
-        console.log('ℹ️ Score updated but audit logging skipped (game_id is not UUID)');
+        console.log('ℹ️ Score update logged');
       }
     } catch (logError) {
       console.warn('⚠️ Failed to log admin action:', logError.message);
@@ -555,8 +588,8 @@ router.put('/games/:gameId/score', checkAdmin, async (req, res) => {
 
     res.json({ success: true, game });
   } catch (error) {
-    console.error('Update score error:', error);
-    res.status(500).json({ error: 'Failed to update score' });
+    console.error('❌ Update score error:', error.message);
+    res.status(500).json({ error: 'Failed to update score', details: error.message });
   }
 });
 
@@ -570,21 +603,22 @@ router.put('/games/:gameId/markets', checkAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Invalid markets data' });
     }
 
-    console.log(`📝 Updating markets for game: ${gameId}`, Object.keys(markets));
+    console.log(`📝 Updating markets for game: ${gameId}`, Object.keys(markets).length, 'markets');
 
-    // First, get the game by game_id to find its UUID
+    // Try to find game by either UUID (id) or text game_id
     const { data: game, error: gameError } = await supabase
       .from('games')
       .select('id, game_id')
-      .eq('game_id', gameId)
+      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
       .single();
 
     if (gameError || !game) {
-      console.error('❌ Game not found:', gameId);
-      return res.status(404).json({ error: 'Game not found' });
+      console.error('❌ Game not found with gameId:', gameId, gameError?.message);
+      return res.status(404).json({ error: 'Game not found', details: gameError?.message });
     }
 
     const gameUUID = game.id;
+    console.log(`✅ Found game UUID: ${gameUUID} for gameId: ${gameId}`);
 
     // Delete existing markets for this game
     const { error: deleteError } = await supabase
@@ -595,6 +629,8 @@ router.put('/games/:gameId/markets', checkAdmin, async (req, res) => {
     if (deleteError) {
       console.warn('⚠️ Error deleting existing markets:', deleteError.message);
       // Continue anyway, we'll insert/update new ones
+    } else {
+      console.log('✅ Deleted existing markets');
     }
 
     // Insert new market entries
@@ -605,22 +641,29 @@ router.put('/games/:gameId/markets', checkAdmin, async (req, res) => {
       odds: parseFloat(odds) || 0
     }));
 
+    console.log(`📝 Preparing to insert ${marketEntries.length} market entries`);
+
     if (marketEntries.length > 0) {
       const { error: insertError } = await supabase
         .from('markets')
         .insert(marketEntries);
 
       if (insertError) {
-        console.error('❌ Error inserting markets:', insertError.message);
-        return res.status(500).json({ error: 'Failed to insert markets', details: insertError.message });
+        console.error('❌ Error inserting markets:', insertError.message, insertError.details);
+        return res.status(500).json({ 
+          error: 'Failed to insert markets', 
+          details: insertError.message,
+          code: insertError.code
+        });
       }
+      console.log(`✅ Successfully inserted ${marketEntries.length} markets`);
     }
 
     console.log(`✅ Markets updated successfully for game ${gameId}`);
 
-    res.json({ success: true, game });
+    res.json({ success: true, game, marketCount: marketEntries.length });
   } catch (error) {
-    console.error('❌ Update markets error:', error);
+    console.error('❌ Update markets error:', error.message);
     res.status(500).json({ error: 'Failed to update markets', details: error.message });
   }
 });
