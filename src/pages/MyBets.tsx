@@ -39,6 +39,9 @@ export default function MyBets() {
             game.minute
           );
           newMinutes[game.id] = { minute, seconds };
+          
+          // Debug log
+          console.log(`👥 MyBets ${game.id.substring(0, 8)}: Displaying ${minute}:${String(seconds).padStart(2, "0")}`);
         }
       });
       if (Object.keys(newMinutes).length > 0) {

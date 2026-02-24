@@ -79,6 +79,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               homeScore: g.home_score || 0,
               awayScore: g.away_score || 0,
               minute: g.minute || 0,
+              seconds: 0, // Initialize seconds to 0 - calculated on frontend
               kickoffStartTime: g.kickoff_start_time || undefined,
               isKickoffStarted: g.is_kickoff_started || false,
               gamePaused: g.game_paused || false,
@@ -182,6 +183,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
             homeScore: g.home_score || 0,
             awayScore: g.away_score || 0,
             minute: g.minute || 0,
+            seconds: 0, // Initialize seconds to 0 - calculated on frontend
             kickoffStartTime: g.kickoff_start_time || undefined,
             isKickoffStarted: g.is_kickoff_started || false,
             gamePaused: g.game_paused || false,

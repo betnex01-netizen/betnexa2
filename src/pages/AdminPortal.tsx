@@ -72,17 +72,17 @@ const AdminPortal = () => {
             game.minute
           );
 
-          // Debug log
-          if (minute === 0 && seconds === 0) {
-            console.log(`✅ Game ${game.id} - Minute: ${minute}:${String(seconds).padStart(2, "0")}`);
-          }
+          // Debug log every second - show full timing for all live games
+          console.log(`⏱️  Game ${game.id.substring(0, 8)}: Calculated ${minute}:${String(seconds).padStart(2, "0")} | Stored ${game.minute}:${String(game.seconds || 0).padStart(2, "0")} | Kickoff: ${game.kickoffStartTime}`);
 
           // Update game in context - ONLY update minute/seconds, don't auto-pause at 45
           if (minute > 95) {
             // Game ends at 95 minutes
+            console.log(`🏁 Game ${game.id.substring(0, 8)} finished at 95+ minutes`);
             updateGame(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
           } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
             // Update minute/seconds if they changed
+            console.log(`✅ Updating Game ${game.id.substring(0, 8)} from ${game.minute}:${String(game.seconds || 0).padStart(2, "0")} to ${minute}:${String(seconds).padStart(2, "0")}`);
             updateGame(game.id, { minute, seconds });
           }
         }

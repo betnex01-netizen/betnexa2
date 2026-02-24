@@ -118,6 +118,9 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
           );
           minute = calculatedMinute;
           seconds = calculatedSeconds;
+          
+          // Debug log for live games
+          console.log(`🎮 MatchCard ${match.id.substring(0, 8)}: Displaying ${minute}:${String(seconds).padStart(2, "0")} (kickoff: ${gameFromContext.kickoffStartTime})`);
         }
 
         setLiveStatus({
