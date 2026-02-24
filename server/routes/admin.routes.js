@@ -116,8 +116,8 @@ router.get('/games', async (req, res) => {
           console.log(`✅ Retrieved ${markets.length} market entries`);
           
           // Group markets by game_id
-          const marketsByGame: Record<string, Record<string, number>> = {};
-          markets.forEach((market: any) => {
+          const marketsByGame = {};
+          markets.forEach((market) => {
             const gameId = market.game_id;
             if (!marketsByGame[gameId]) {
               marketsByGame[gameId] = {};
@@ -129,14 +129,14 @@ router.get('/games', async (req, res) => {
           });
 
           // Attach markets to each game
-          gamesWithMarkets = gamesWithMarkets.map((game: any) => ({
+          gamesWithMarkets = gamesWithMarkets.map((game) => ({
             ...game,
             markets: marketsByGame[game.id || game.game_id] || {}
           }));
         } else if (marketsError) {
           console.warn('⚠️ Failed to fetch markets:', marketsError.message);
           // Continue without markets data
-          gamesWithMarkets = gamesWithMarkets.map((game: any) => ({
+          gamesWithMarkets = gamesWithMarkets.map((game) => ({
             ...game,
             markets: {}
           }));
@@ -144,7 +144,7 @@ router.get('/games', async (req, res) => {
       } catch (marketError) {
         console.warn('⚠️ Error processing markets:', marketError);
         // Continue without markets data
-        gamesWithMarkets = gamesWithMarkets.map((game: any) => ({
+        gamesWithMarkets = gamesWithMarkets.map((game) => ({
           ...game,
           markets: {}
         }));
