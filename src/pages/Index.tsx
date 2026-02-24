@@ -46,8 +46,10 @@ const Index = () => {
     markets: generateMarketOdds(2.80, 3.58, 3.63),
   };
 
-  // Combine hardcoded game with API games
-  const games = [northernStormGame, ...apiGames];
+  // Combine hardcoded game with API games, but filter out finished games
+  const games = [northernStormGame, ...apiGames].filter(
+    (game) => game.status !== "finished"
+  );
 
   const handleSelectOdd = (matchId: string, type: string, odds: number, match: Match) => {
     const key = `${matchId}-${type}`;

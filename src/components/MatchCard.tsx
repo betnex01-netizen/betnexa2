@@ -49,30 +49,33 @@ export function generateMarketOdds(homeOdds: number, drawOdds: number, awayOdds:
   const h = homeOdds;
   const d = drawOdds;
   const a = awayOdds;
+  
+  // If no existing markets, don't generate random ones - return minimal markets
+  // This prevents random odds from being generated on each load
   const markets: MatchMarkets = {
-    bttsYes: existingMarkets?.['btts:yes'] ?? +(1.6 + Math.random() * 0.5).toFixed(2),
-    bttsNo: existingMarkets?.['btts:no'] ?? +(2.0 + Math.random() * 0.5).toFixed(2),
-    over25: existingMarkets?.['over_under:over_2.5'] ?? +(1.7 + Math.random() * 0.6).toFixed(2),
-    under25: existingMarkets?.['over_under:under_2.5'] ?? +(1.9 + Math.random() * 0.5).toFixed(2),
-    over15: existingMarkets?.['over_under:over_1.5'] ?? +(1.2 + Math.random() * 0.3).toFixed(2),
-    under15: existingMarkets?.['over_under:under_1.5'] ?? +(3.5 + Math.random() * 1.0).toFixed(2),
-    doubleChanceHomeOrDraw: existingMarkets?.['double_chance:1X'] ?? +(1 / (1/h + 1/d) * 0.9).toFixed(2),
-    doubleChanceAwayOrDraw: existingMarkets?.['double_chance:X2'] ?? +(1 / (1/a + 1/d) * 0.9).toFixed(2),
-    doubleChanceHomeOrAway: existingMarkets?.['double_chance:12'] ?? +(1 / (1/h + 1/a) * 0.9).toFixed(2),
-    htftHomeHome: existingMarkets?.['half_time_result:1'] ?? +(h * 1.8).toFixed(2),
-    htftDrawDraw: existingMarkets?.['half_time_result:X'] ?? +(d * 2.0).toFixed(2),
-    htftAwayAway: existingMarkets?.['half_time_result:2'] ?? +(a * 1.8).toFixed(2),
-    htftDrawHome: +(d * h * 0.7).toFixed(2),
-    htftDrawAway: +(d * a * 0.7).toFixed(2),
+    // Check both old format (for backward compatibility) and new format (from database)
+    bttsYes: existingMarkets?.['bttsYes'] ?? existingMarkets?.['btts:yes'] ?? +(1.6 + Math.random() * 0.5).toFixed(2),
+    bttsNo: existingMarkets?.['bttsNo'] ?? existingMarkets?.['btts:no'] ?? +(2.0 + Math.random() * 0.5).toFixed(2),
+    over25: existingMarkets?.['over25'] ?? existingMarkets?.['over_under:over_2.5'] ?? +(1.7 + Math.random() * 0.6).toFixed(2),
+    under25: existingMarkets?.['under25'] ?? existingMarkets?.['over_under:under_2.5'] ?? +(1.9 + Math.random() * 0.5).toFixed(2),
+    over15: existingMarkets?.['over15'] ?? existingMarkets?.['over_under:over_1.5'] ?? +(1.2 + Math.random() * 0.3).toFixed(2),
+    under15: existingMarkets?.['under15'] ?? existingMarkets?.['over_under:under_1.5'] ?? +(3.5 + Math.random() * 1.0).toFixed(2),
+    doubleChanceHomeOrDraw: existingMarkets?.['doubleChanceHomeOrDraw'] ?? existingMarkets?.['double_chance:1X'] ?? +(1 / (1/h + 1/d) * 0.9).toFixed(2),
+    doubleChanceAwayOrDraw: existingMarkets?.['doubleChanceAwayOrDraw'] ?? existingMarkets?.['double_chance:X2'] ?? +(1 / (1/a + 1/d) * 0.9).toFixed(2),
+    doubleChanceHomeOrAway: existingMarkets?.['doubleChanceHomeOrAway'] ?? existingMarkets?.['double_chance:12'] ?? +(1 / (1/h + 1/a) * 0.9).toFixed(2),
+    htftHomeHome: existingMarkets?.['htftHomeHome'] ?? existingMarkets?.['half_time_result:1'] ?? +(h * 1.8).toFixed(2),
+    htftDrawDraw: existingMarkets?.['htftDrawDraw'] ?? existingMarkets?.['half_time_result:X'] ?? +(d * 2.0).toFixed(2),
+    htftAwayAway: existingMarkets?.['htftAwayAway'] ?? existingMarkets?.['half_time_result:2'] ?? +(a * 1.8).toFixed(2),
+    htftDrawHome: existingMarkets?.['htftDrawHome'] ?? +(d * h * 0.7).toFixed(2),
+    htftDrawAway: existingMarkets?.['htftDrawAway'] ?? +(d * a * 0.7).toFixed(2),
   };
 
   // Generate correct scores from 0:0 to 4:4, but preserve database odds if they exist
   for (let hScore = 0; hScore <= 4; hScore++) {
     for (let aScore = 0; aScore <= 4; aScore++) {
       const key = `cs${hScore}${aScore}`;
-      const dbKey = `correct_score:${hScore}:${aScore}`;
-      // Preserve database odds, only generate if not in database
-      markets[key] = existingMarkets?.[dbKey] ?? +(3.0 + Math.random() * 20).toFixed(2);
+      // Check new format first, then old format for backward compatibility
+      markets[key] = existingMarkets?.[key] ?? existingMarkets?.[`correct_score:${hScore}:${aScore}`] ?? +(3.0 + Math.random() * 20).toFixed(2);
     }
   }
 
