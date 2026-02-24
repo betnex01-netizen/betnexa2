@@ -655,6 +655,43 @@ router.put('/users/:userId/activate-withdrawal', checkAdmin, async (req, res) =>
   }
 });
 
+// GET: Fetch all users (admin)
+router.get('/users', checkAdmin, async (req, res) => {
+  try {
+    console.log('\n👥 [GET /api/admin/users] Fetching all users...');
+
+    if (!supabase) {
+      console.error('❌ Supabase client is not initialized');
+      return res.status(503).json({ 
+        error: 'Service unavailable', 
+        details: 'Database not initialized',
+        success: false
+      });
+    }
+
+    // Fetch all users from users table
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (usersError) {
+      console.error('❌ Database query error:', usersError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: usersError.message 
+      });
+    }
+
+    console.log(`✅ Retrieved ${users?.length || 0} users successfully`);
+
+    res.json({ success: true, users: users || [] });
+  } catch (error) {
+    console.error('❌ Get users error:', error.message || error);
+    res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
 // GET: Admin dashboard stats
 router.get('/stats', checkAdmin, async (req, res) => {
   try {

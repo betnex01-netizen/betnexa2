@@ -23,6 +23,8 @@ interface UserManagementContextType {
   getUser: (userId: string) => User | undefined;
   addUser: (user: User) => void;
   getAllUsers: () => User[];
+  setAllUsers: (users: User[]) => void;
+  fetchUsersFromBackend: () => Promise<void>;
 }
 
 const UserManagementContext = createContext<UserManagementContextType | undefined>(undefined);
@@ -113,9 +115,49 @@ export function UserManagementProvider({ children }: { children: ReactNode }) {
     return users;
   };
 
+  const setAllUsers = (newUsers: User[]) => {
+    setUsers(newUsers);
+  };
+
+  const fetchUsersFromBackend = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/users`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.users) {
+        // Map database fields to User interface
+        const mappedUsers: User[] = data.users.map((u: any) => ({
+          id: u.id,
+          name: u.name || u.phone_number,
+          email: u.email || '',
+          phone: u.phone_number || '',
+          password: u.password || '',
+          username: u.username || u.phone_number,
+          verified: u.email_verified || false,
+          level: u.is_admin ? 'Admin' : 'Regular User',
+          joinDate: u.created_at || new Date().toISOString(),
+          totalBets: parseInt(u.total_bets || 0),
+          totalWinnings: parseFloat(u.total_winnings || 0),
+          accountBalance: parseFloat(u.account_balance || 0),
+          withdrawalActivated: u.withdrawal_activated || false,
+          withdrawalActivationDate: u.withdrawal_activation_date || null,
+        }));
+
+        setAllUsers(mappedUsers);
+      }
+    } catch (error) {
+      console.error('Error fetching users from backend:', error);
+    }
+  };
+
   return (
     <UserManagementContext.Provider
-      value={{ users, updateUser, getUser, addUser, getAllUsers }}
+      value={{ users, updateUser, getUser, addUser, getAllUsers, setAllUsers, fetchUsersFromBackend }}
     >
       {children}
     </UserManagementContext.Provider>

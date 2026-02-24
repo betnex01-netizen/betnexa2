@@ -31,7 +31,7 @@ const AdminPortal = () => {
   const { matches, updateScore, setFinalScore } = useMatches();
   const { bets, syncBalance, updateBetStatus } = useBets();
   const { games, addGame, updateGame, removeGame, updateGameMarkets, refreshGames } = useOdds();
-  const { users, updateUser, getAllUsers } = useUserManagement();
+  const { users, updateUser, getAllUsers, fetchUsersFromBackend } = useUserManagement();
   const { user: loggedInUser, updateUser: updateCurrentUser } = useUser();
   const { getAllTransactions, updateTransactionStatus } = useTransactions();
   
@@ -88,6 +88,12 @@ const AdminPortal = () => {
 
     return () => clearInterval(interval);
   }, [games, updateGame]);
+
+  // Fetch users from backend when component mounts
+  useEffect(() => {
+    console.log('📦 Fetching users from backend...');
+    fetchUsersFromBackend();
+  }, []);
 
   const handleAdminActivateWithdrawal = async (userId: string, userName: string) => {
     setActivatingUserId(userId);
