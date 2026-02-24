@@ -243,6 +243,12 @@ export default function Finance() {
       return;
     }
     
+    // Validate minimum withdrawal amount (100 KSH)
+    if (activeTab === "withdrawal" && transactionAmount < 100) {
+      alert("❌ Minimum withdrawal amount is KSH 100. Please enter a higher amount.");
+      return;
+    }
+    
     // Validate withdrawal has sufficient balance
     if (activeTab === "withdrawal" && transactionAmount > balance) {
       alert(`Insufficient balance. Current balance: KSH ${balance}`);
@@ -668,11 +674,11 @@ export default function Finance() {
                     onChange={(e) => setAmount(e.target.value)}
                     className="mt-2"
                     disabled={isProcessing}
-                    min="500"
+                    min="100"
                     step="1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Minimum: KSH 500 | Available: KSH {balance.toLocaleString()}
+                    Minimum: 100 | Available: KSH {balance.toLocaleString()}
                   </p>
                 </div>
 
