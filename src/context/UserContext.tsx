@@ -59,37 +59,57 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
 
   // Load user and verify session on mount
   useEffect(() => {
     const initializeAuth = async () => {
-      const savedUser = localStorage.getItem('betnexa_user');
-      const savedSession = localStorage.getItem('betnexa_session');
-      
-      if (savedUser && savedSession) {
-        try {
-          const userData = JSON.parse(savedUser);
-          const sessionData = JSON.parse(savedSession);
-          
-          // Verify session is still valid
-          const currentSession = sessionService.getCurrentSession();
-          if (currentSession) {
-            setUser(userData);
-            setSessionId(currentSession.sessionId);
-            setIsLoggedIn(true);
+      try {
+        const savedUser = localStorage.getItem('betnexa_user');
+        const savedSession = localStorage.getItem('betnexa_session');
+        
+        console.log('🔐 Checking for existing session in localStorage...');
+        
+        if (savedUser && savedSession) {
+          try {
+            const userData = JSON.parse(savedUser);
+            const sessionData = JSON.parse(savedSession);
             
-            // Update session activity
-            await sessionService.updateSessionActivity(currentSession.sessionId);
-          } else {
-            // Session expired, clear auth
+            console.log('✅ Found saved user and session:', userData.username);
+            
+            // Restore session immediately from localStorage (faster than database check)
+            setUser(userData);
+            setSessionId(sessionData.sessionId);
+            setIsLoggedIn(true);
+            setIsAuthReady(true);
+            
+            console.log('✅ Session restored from local storage');
+            
+            // Verify session is still valid in background
+            const currentSession = sessionService.getCurrentSession();
+            if (!currentSession) {
+              console.warn('⚠️ Session validation failed, but keeping local session active');
+              // Don't immediately log out - let the background check happen
+            } else {
+              // Update session activity
+              await sessionService.updateSessionActivity(currentSession.sessionId).catch(err => {
+                console.warn('⚠️ Failed to update session activity:', err);
+                // Continue anyway, don't interrupt user session
+              });
+            }
+          } catch (parseError) {
+            console.error('❌ Error parsing saved session:', parseError);
             localStorage.removeItem('betnexa_user');
             localStorage.removeItem('betnexa_session');
+            setIsAuthReady(true);
           }
-        } catch (error) {
-          console.error('Failed to initialize auth:', error);
-          localStorage.removeItem('betnexa_user');
-          localStorage.removeItem('betnexa_session');
+        } else {
+          console.log('ℹ️ No saved session found');
+          setIsAuthReady(true);
         }
+      } catch (error) {
+        console.error('❌ Failed to initialize auth:', error);
+        setIsAuthReady(true);
       }
     };
     
@@ -105,8 +125,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setUser(userData);
         setSessionId(session.sessionId);
         setIsLoggedIn(true);
+        
+        // Persist to localStorage immediately
         localStorage.setItem('betnexa_user', JSON.stringify(userData));
         localStorage.setItem('betnexa_session', JSON.stringify(session));
+        
         console.log(`✅ Login successful on device: ${session.deviceName}`);
       } else {
         throw new Error('Failed to create session');
@@ -131,6 +154,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setIsLoggedIn(false);
       localStorage.removeItem('betnexa_user');
       localStorage.removeItem('betnexa_session');
+      console.log('✅ User logged out successfully');
     }
   };
 
