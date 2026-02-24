@@ -453,7 +453,7 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
     const allowedFields = [
       'league', 'home_team', 'away_team', 'home_odds', 'draw_odds', 'away_odds',
       'scheduled_time', 'status', 'home_score', 'away_score', 'minute',
-      'markets', 'is_kickoff_started', 'game_paused', 'kickoff_start_time', 'is_halftime'
+      'markets', 'is_kickoff_started', 'game_paused', 'kickoff_start_time', 'kickoff_paused_at', 'is_halftime'
     ];
 
     const sanitizedUpdates = {};

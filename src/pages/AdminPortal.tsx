@@ -63,7 +63,7 @@ const AdminPortal = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       games.forEach((game) => {
-        if (game.isKickoffStarted && game.kickoffStartTime !== undefined) {
+        if (game.isKickoffStarted && game.kickoffStartTime) {
           // Calculate current minute based on elapsed time
           const { minute } = calculateMatchMinute(
             game.kickoffStartTime,
@@ -72,13 +72,10 @@ const AdminPortal = () => {
             game.minute
           );
 
-          // Update game in context
+          // Update game in context - ONLY update minute, don't auto-pause at 45
           if (minute > 95) {
             // Game ends at 95 minutes
             updateGame(game.id, { minute: 95, status: "finished", isKickoffStarted: false });
-          } else if (minute === 45 && !game.gamePaused) {
-            // Show HALFTIME at 45 minutes (only when not already paused)
-            updateGame(game.id, { minute: 45, gamePaused: true });
           } else if (minute !== game.minute) {
             // Update minute if it changed
             updateGame(game.id, { minute });
@@ -88,7 +85,7 @@ const AdminPortal = () => {
     }, 1000); // Update every 1 second for real-time feel
 
     return () => clearInterval(interval);
-  }, [games, updateGame]);
+  }, [games.length]); // Only depend on games length to minimize re-renders
 
   // Fetch users from backend when component mounts
   useEffect(() => {
@@ -331,6 +328,7 @@ const AdminPortal = () => {
     if (!game) return;
 
     try {
+      const now = new Date().toISOString();
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
         method: 'PUT',
@@ -342,20 +340,24 @@ const AdminPortal = () => {
           homeScore: 0,
           awayScore: 0,
           isKickoffStarted: true,
-          gamePaused: false
+          gamePaused: false,
+          kickoffStartTime: now
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
+        // Get kickoff_start_time from response (backend uses snake_case)
+        const kickoffStartTime = data.game?.kickoff_start_time || now;
         updateGame(gameId, {
           status: "live",
           minute: 0,
           homeScore: 0,
           awayScore: 0,
           isKickoffStarted: true,
-          gamePaused: false
+          gamePaused: false,
+          kickoffStartTime: kickoffStartTime
         });
         alert('✅ Kickoff started!');
       } else {
@@ -373,6 +375,7 @@ const AdminPortal = () => {
     if (!game || game.minute === undefined) return;
 
     try {
+      const now = new Date().toISOString();
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
         method: 'PUT',
@@ -380,16 +383,17 @@ const AdminPortal = () => {
         body: JSON.stringify({
           phone: loggedInUser.phone,
           gamePaused: true,
-          kickoffPausedAt: new Date().toISOString(),
+          kickoffPausedAt: now
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
+        const kickoffPausedAt = data.game?.kickoff_paused_at || now;
         updateGame(gameId, {
           gamePaused: true,
-          kickoffPausedAt: new Date().toISOString(),
+          kickoffPausedAt: kickoffPausedAt
         });
         alert('⏸️ Game paused!');
       } else {
@@ -404,7 +408,7 @@ const AdminPortal = () => {
 
   const resumeKickoff = async (gameId: string) => {
     const game = games.find((g) => g.id === gameId);
-    if (!game || game.kickoffStartTime === undefined || game.kickoffPausedAt === undefined) return;
+    if (!game || !game.kickoffStartTime || !game.kickoffPausedAt) return;
 
     try {
       // Convert ISO strings to milliseconds for calculation
@@ -429,18 +433,19 @@ const AdminPortal = () => {
           gamePaused: false,
           isKickoffStarted: true,
           kickoffStartTime: newKickoffStartTime,
-          kickoffPausedAt: undefined,
+          kickoffPausedAt: null
         })
       });
 
       const data = await response.json();
 
       if (data.success) {
+        const kickoffStartTime = data.game?.kickoff_start_time || newKickoffStartTime;
         updateGame(gameId, {
           gamePaused: false,
           isKickoffStarted: true,
-          kickoffStartTime: newKickoffStartTime,
-          kickoffPausedAt: undefined,
+          kickoffStartTime: kickoffStartTime,
+          kickoffPausedAt: undefined
         });
         alert('▶️ Game resumed!');
       } else {
