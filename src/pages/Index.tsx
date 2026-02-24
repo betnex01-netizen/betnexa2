@@ -152,29 +152,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Features */}
-      <section className="container mx-auto px-4 py-16">
-        <h2 className="mb-10 text-center font-display text-2xl font-bold uppercase tracking-wider text-foreground">
-          Why <span className="text-primary">BetNexa</span>?
-        </h2>
-        <div className="grid gap-6 md:grid-cols-4">
-          {[
-            { icon: Zap, title: "Instant Payouts", desc: "Withdraw your winnings instantly to your wallet." },
-            { icon: TrendingUp, title: "Best Odds", desc: "Industry-leading odds on all major sports." },
-            { icon: Star, title: "VIP Program", desc: "Exclusive rewards and bonuses for loyal players." },
-            { icon: Trophy, title: "Live Betting", desc: "Bet on matches in real-time with live updates." },
-          ].map((f) => (
-            <div key={f.title} className="gradient-card rounded-xl border border-border/50 p-6 text-center card-glow transition-transform hover:scale-105">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                <f.icon className="h-6 w-6 text-primary" />
-              </div>
-              <h3 className="mb-2 font-display text-sm font-bold uppercase tracking-wider text-foreground">{f.title}</h3>
-              <p className="text-sm text-muted-foreground">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
       <BettingSlip
         items={betSlip}
         onRemove={(id) => {

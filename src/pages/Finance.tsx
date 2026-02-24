@@ -577,18 +577,6 @@ export default function Finance() {
                   </p>
                 </div>
 
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-                  <p className="text-sm text-foreground">
-                    <strong>How it works:</strong>
-                  </p>
-                  <ol className="mt-2 space-y-1 text-sm text-muted-foreground">
-                    <li>1. Enter your M-Pesa phone number and amount</li>
-                    <li>2. Click "Deposit Now"</li>
-                    <li>3. Enter your M-Pesa PIN on your phone</li>
-                    <li>4. Funds will be credited immediately</li>
-                  </ol>
-                </div>
-
                 <Button
                   variant="hero"
                   className="w-full"
