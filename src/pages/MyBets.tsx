@@ -26,22 +26,16 @@ export default function MyBets() {
   const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
   const [liveMinutes, setLiveMinutes] = useState<Record<string, { minute: number; seconds: number }>>({});
 
-  // Update real-time minutes and seconds for live games
+  // Update live game display times - reads from game state every second
   useEffect(() => {
     const interval = setInterval(() => {
       const newMinutes: Record<string, { minute: number; seconds: number }> = {};
       games.forEach((game) => {
-        if (game.isKickoffStarted && game.kickoffStartTime) {
-          const { minute, seconds } = calculateMatchMinute(
-            game.kickoffStartTime,
-            game.gamePaused || false,
-            game.kickoffPausedAt,
-            game.minute
-          );
-          newMinutes[game.id] = { minute, seconds };
-          
-          // Debug log
-          console.log(`👥 MyBets ${game.id.substring(0, 8)}: Displaying ${minute}:${String(seconds).padStart(2, "0")}`);
+        if (game.isKickoffStarted) {
+          newMinutes[game.id] = { 
+            minute: game.minute || 0, 
+            seconds: game.seconds || 0 
+          };
         }
       });
       if (Object.keys(newMinutes).length > 0) {

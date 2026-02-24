@@ -101,39 +101,21 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
   const gameFromContext = getGame(match.id);
   const displayGame = gameFromContext || match;
 
-  // Update live status from context and set up real-time minute updates
+  // Update live status from context - reads minutes and seconds from game state
   useEffect(() => {
     if (gameFromContext) {
       const updateStatus = () => {
-        let minute = gameFromContext.minute || 0;
-        let seconds = gameFromContext.seconds || 0;
-        
-        // Calculate minute and seconds from kickoff_start_time when game is live
-        if (gameFromContext.status === "live" && gameFromContext.kickoffStartTime) {
-          const { minute: calculatedMinute, seconds: calculatedSeconds } = calculateMatchMinute(
-            gameFromContext.kickoffStartTime,
-            gameFromContext.gamePaused || false,
-            gameFromContext.kickoffPausedAt,
-            gameFromContext.minute
-          );
-          minute = calculatedMinute;
-          seconds = calculatedSeconds;
-          
-          // Debug log for live games
-          console.log(`🎮 MatchCard ${match.id.substring(0, 8)}: Displaying ${minute}:${String(seconds).padStart(2, "0")} (kickoff: ${gameFromContext.kickoffStartTime})`);
-        }
-
         setLiveStatus({
           isLive: gameFromContext.status === "live",
-          minute: minute,
-          seconds: seconds,
+          minute: gameFromContext.minute || 0,
+          seconds: gameFromContext.seconds || 0,
           status: gameFromContext.status,
         });
       };
 
       updateStatus(); // Update immediately
 
-      // Update every second to keep time in sync
+      // Update every second to display current time
       const interval = setInterval(updateStatus, 1000);
       return () => clearInterval(interval);
     }

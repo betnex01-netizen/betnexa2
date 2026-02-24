@@ -59,38 +59,32 @@ const AdminPortal = () => {
   // Admin withdrawal activation state
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
 
-  // Real-time minute calculation for kicked-off games
+  // Real-time timer for live games - updates EVERY SECOND with elapsed time from kickoff
   useEffect(() => {
     const interval = setInterval(() => {
       games.forEach((game) => {
         if (game.isKickoffStarted && game.kickoffStartTime) {
-          // Calculate current minute and seconds based on elapsed time
-          const { minute, seconds } = calculateMatchMinute(
-            game.kickoffStartTime,
-            game.gamePaused || false,
-            game.kickoffPausedAt,
-            game.minute
-          );
+          // Calculate elapsed seconds since kickoff started
+          const kickoffMs = new Date(game.kickoffStartTime).getTime();
+          const now = Date.now();
+          const elapsedMs = now - kickoffMs;
+          const totalSeconds = Math.floor(elapsedMs / 1000);
+          const minute = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
 
-          // Debug log every second - show full timing for all live games
-          console.log(`⏱️  Game ${game.id.substring(0, 8)}: Calculated ${minute}:${String(seconds).padStart(2, "0")} | Stored ${game.minute}:${String(game.seconds || 0).padStart(2, "0")} | Kickoff: ${game.kickoffStartTime}`);
-
-          // Update game in context - ONLY update minute/seconds, don't auto-pause at 45
-          if (minute > 95) {
-            // Game ends at 95 minutes
-            console.log(`🏁 Game ${game.id.substring(0, 8)} finished at 95+ minutes`);
+          // Stop at 95 minutes
+          if (minute >= 95) {
             updateGame(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
           } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
-            // Update minute/seconds if they changed
-            console.log(`✅ Updating Game ${game.id.substring(0, 8)} from ${game.minute}:${String(game.seconds || 0).padStart(2, "0")} to ${minute}:${String(seconds).padStart(2, "0")}`);
+            // Update every second
             updateGame(game.id, { minute, seconds });
           }
         }
       });
-    }, 1000); // Update every 1 second for real-time feel
+    }, 1000);
 
     return () => clearInterval(interval);
-  }, [games.length]); // Only depend on games length to minimize re-renders
+  }, [games.length]);
 
   // Fetch users from backend when component mounts
   useEffect(() => {
@@ -334,7 +328,6 @@ const AdminPortal = () => {
 
     try {
       const now = new Date().toISOString();
-      console.log('🚀 Starting kickoff with timestamp:', now);
       
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
@@ -354,13 +347,11 @@ const AdminPortal = () => {
       });
 
       const data = await response.json();
-      console.log('📊 Kickoff response:', data);
 
       if (data.success) {
-        // Get kickoff_start_time from response or use the one we sent
         const kickoffStartTime = data.game?.kickoff_start_time || now;
-        console.log('⏱️  Setting kickoffStartTime to:', kickoffStartTime);
         
+        // Start timer immediately at 0:00 and begin counting
         updateGame(gameId, {
           status: "live",
           minute: 0,
@@ -371,9 +362,8 @@ const AdminPortal = () => {
           gamePaused: false,
           kickoffStartTime: kickoffStartTime
         });
-        alert('✅ Kickoff started!');
+        alert('✅ Kickoff started! Timer counting 0:00');
       } else {
-        console.error('Start kickoff error:', data);
         alert(`Error: ${data.details || data.error || 'Failed to start kickoff'}`);
       }
     } catch (error) {
