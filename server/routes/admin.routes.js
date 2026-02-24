@@ -70,6 +70,12 @@ async function checkAdmin(req, res, next) {
   }
 }
 
+// Helper function to check if a string is a valid UUID
+function isValidUUID(str) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 // Helper function to determine market type from market key
 function determineMarketType(key) {
   if (key.startsWith('cs')) return 'CS';
@@ -470,13 +476,18 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
 
     sanitizedUpdates.updated_at = new Date().toISOString();
 
-    // Try to update by either UUID (id) or text game_id
-    // First, find the game
-    const { data: existingGame, error: findError } = await supabase
-      .from('games')
-      .select('*')
-      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
-      .maybeSingle();
+    // Try to find the game - check if gameId is UUID or text game_id
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId looks like UUID, searching by id`);
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId looks like text, searching by game_id`);
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
 
     if (findError) {
       console.error('❌ Error finding game:', findError.message, findError.code);
@@ -548,12 +559,18 @@ router.delete('/games/:gameId', checkAdmin, async (req, res) => {
 
     console.log(`🗑️  Deleting game: ${gameId}`);
 
-    // Find the game first
-    const { data: existingGame, error: findError } = await supabase
-      .from('games')
-      .select('*')
-      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
-      .maybeSingle();
+    // Find the game first - check if gameId is UUID or text game_id
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId looks like UUID, searching by id`);
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId looks like text, searching by game_id`);
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
 
     if (findError) {
       console.error('❌ Error finding game:', findError.message);
@@ -612,12 +629,18 @@ router.put('/games/:gameId/score', checkAdmin, async (req, res) => {
       updated_at: new Date().toISOString(),
     };
 
-    // Find the game first
-    const { data: existingGame, error: findError } = await supabase
-      .from('games')
-      .select('*')
-      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
-      .maybeSingle();
+    // Find the game first - check if gameId is UUID or text game_id
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId looks like UUID, searching by id`);
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId looks like text, searching by game_id`);
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
 
     if (findError) {
       console.error('❌ Error finding game:', findError.message);
@@ -680,11 +703,17 @@ router.put('/games/:gameId/markets', checkAdmin, async (req, res) => {
     console.log(`📝 Updating markets for game: ${gameId}`, Object.keys(markets).length, 'markets');
 
     // Try to find game by either UUID (id) or text game_id
-    const { data: game, error: gameError } = await supabase
-      .from('games')
-      .select('id, game_id')
-      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
-      .single();
+    let gameQuery = supabase.from('games').select('id, game_id');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId looks like UUID, searching by id`);
+      gameQuery = gameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId looks like text, searching by game_id`);
+      gameQuery = gameQuery.eq('game_id', gameId);
+    }
+
+    const { data: game, error: gameError } = await gameQuery.single();
 
     if (gameError || !game) {
       console.error('❌ Game not found with gameId:', gameId, gameError?.message);
