@@ -3,6 +3,7 @@ import { X, Trash2, ChevronUp, ChevronDown, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { useBets } from "@/context/BetContext";
+import { useUser } from "@/context/UserContext";
 import type { PlacedBet } from "@/context/BetContext";
 
 export interface BetSlipItem {
@@ -78,7 +79,8 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
   const [stake, setStake] = useState("");
   const [isOpen, setIsOpen] = useState(true);
   const [isPlacing, setIsPlacing] = useState(false);
-  const { addBet, placeBet } = useBets();
+  const { addBet, placeBet, syncBalance } = useBets();
+  const { user } = useUser();
 
   const stakeNum = parseFloat(stake) || 0;
   const totalOdds = items.reduce((acc, item) => acc * item.odds, 1);
@@ -93,7 +95,7 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
     return result;
   };
 
-  const handlePlaceBet = () => {
+  const handlePlaceBet = async () => {
     if (stakeNum < 500) {
       toast({
         title: "Invalid Stake",
@@ -103,28 +105,55 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
       return;
     }
 
-    setIsPlacing(true);
-
-    // Attempt to deduct from balance
-    const betPlaced = placeBet(stakeNum);
-    
-    if (!betPlaced) {
+    if (!user?.phone) {
       toast({
-        title: "Insufficient Balance",
-        description: `You need at least KSH ${stakeNum.toFixed(2)} to place this bet`,
+        title: "Error",
+        description: "User information not found. Please login again.",
         variant: "destructive",
       });
-      setIsPlacing(false);
       return;
     }
 
-    // Simulate bet placement
-    setTimeout(() => {
+    setIsPlacing(true);
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      
+      // Call backend to place bet and deduct balance
+      const response = await fetch(`${apiUrl}/api/bets/place`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: user.phone,
+          stake: stakeNum,
+          potentialWin: Math.round(potentialWin),
+          totalOdds: Number(totalOdds.toFixed(2)),
+          selections: items
+        })
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        toast({
+          title: "Bet Failed",
+          description: data.error || 'Failed to place bet',
+          variant: "destructive",
+        });
+        setIsPlacing(false);
+        return;
+      }
+
+      // Update local balance with new balance from server
+      if (data.newBalance !== undefined) {
+        syncBalance(data.newBalance);
+      }
+
+      // Add bet to local context
       const now = new Date();
-      const betId = generateBetId();
       const newBet: PlacedBet = {
         id: `bet_${Date.now()}`,
-        betId,
+        betId: data.bet.betId,
         date: `${now.getDate()}/${now.getMonth() + 1}`,
         time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`,
         stake: stakeNum,
@@ -138,7 +167,7 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
 
       toast({
         title: "Bet Placed Successfully! 🎉",
-        description: `BetID: ${betId} | KSH ${stakeNum.toFixed(2)} on ${items.length} selection${items.length > 1 ? "s" : ""} - Potential win: KSH ${potentialWin.toFixed(2)}`,
+        description: `BetID: ${data.bet.betId} | KSH ${stakeNum.toFixed(2)} on ${items.length} selection${items.length > 1 ? "s" : ""} - Potential win: KSH ${potentialWin.toFixed(2)}`,
       });
 
       // Reset the slip
@@ -146,7 +175,15 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
       onClear();
       setIsPlacing(false);
       setIsOpen(false);
-    }, 1000);
+    } catch (error) {
+      console.error('Error placing bet:', error);
+      toast({
+        title: "Error",
+        description: "Failed to place bet. Please try again.",
+        variant: "destructive",
+      });
+      setIsPlacing(false);
+    }
   };
 
   if (items.length === 0) return null;

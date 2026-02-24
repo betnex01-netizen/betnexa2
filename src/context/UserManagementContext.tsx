@@ -121,6 +121,7 @@ export function UserManagementProvider({ children }: { children: ReactNode }) {
 
   const fetchUsersFromBackend = async () => {
     try {
+      console.log('📥 Fetching users from backend...');
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/users`, {
         method: 'GET',
@@ -129,29 +130,40 @@ export function UserManagementProvider({ children }: { children: ReactNode }) {
 
       const data = await response.json();
 
-      if (data.success && data.users) {
+      if (data.success && data.users && Array.isArray(data.users)) {
+        console.log(`✅ Received ${data.users.length} users from backend`);
+        
         // Map database fields to User interface
-        const mappedUsers: User[] = data.users.map((u: any) => ({
-          id: u.id,
-          name: u.name || u.phone_number,
-          email: u.email || '',
-          phone: u.phone_number || '',
-          password: u.password || '',
-          username: u.username || u.phone_number,
-          verified: u.email_verified || false,
-          level: u.is_admin ? 'Admin' : 'Regular User',
-          joinDate: u.created_at || new Date().toISOString(),
-          totalBets: parseInt(u.total_bets || 0),
-          totalWinnings: parseFloat(u.total_winnings || 0),
-          accountBalance: parseFloat(u.account_balance || 0),
-          withdrawalActivated: u.withdrawal_activated || false,
-          withdrawalActivationDate: u.withdrawal_activation_date || null,
-        }));
+        const mappedUsers: User[] = data.users.map((u: any) => {
+          // Handle both is_verified and email_verified field names
+          const isVerified = u.is_verified !== undefined ? u.is_verified : (u.email_verified || false);
+          
+          return {
+            id: u.id || '',
+            name: u.name || u.username || u.phone_number || 'Unknown User',
+            email: u.email || '',
+            phone: u.phone_number || '',
+            password: u.password || '',
+            username: u.username || u.phone_number || '',
+            verified: isVerified,
+            level: u.is_admin ? 'Admin' : 'Regular User',
+            joinDate: u.created_at ? new Date(u.created_at).toLocaleDateString() : new Date().toLocaleDateString(),
+            totalBets: parseInt(u.total_bets || 0),
+            totalWinnings: parseFloat(u.total_winnings || 0),
+            accountBalance: parseFloat(u.account_balance || 0),
+            withdrawalActivated: u.withdrawal_activated || false,
+            withdrawalActivationDate: u.withdrawal_activation_date || null,
+          };
+        });
 
+        console.log(`✅ Mapped ${mappedUsers.length} users successfully`);
         setAllUsers(mappedUsers);
+      } else {
+        console.warn('⚠️  No users data in response or response not successful');
+        console.log('Response data:', data);
       }
     } catch (error) {
-      console.error('Error fetching users from backend:', error);
+      console.error('❌ Error fetching users from backend:', error);
     }
   };
 

@@ -725,4 +725,85 @@ router.get('/stats', checkAdmin, async (req, res) => {
   }
 });
 
+// GET: Fetch all transactions (deposits and withdrawals)
+router.get('/transactions', checkAdmin, async (req, res) => {
+  try {
+    console.log('\n💳 [GET /api/admin/transactions] Fetching all transactions');
+
+    if (!supabase) {
+      console.error('❌ Supabase client is not initialized');
+      return res.status(503).json({ 
+        error: 'Service unavailable',
+        success: false
+      });
+    }
+
+    // Fetch all transactions
+    const { data: transactions, error: txError } = await supabase
+      .from('transactions')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (txError) {
+      console.warn('⚠️  No transactions table found or fetch error:', txError.message);
+      // Return empty array if table doesn't exist
+      return res.json({ success: true, transactions: [] });
+    }
+
+    console.log(`✅ Retrieved ${transactions?.length || 0} transactions`);
+
+    res.json({ 
+      success: true, 
+      transactions: transactions || []
+    });
+  } catch (error) {
+    console.error('❌ Get transactions error:', error);
+    res.json({ 
+      success: true, 
+      transactions: [],
+      message: 'Could not fetch transactions'
+    });
+  }
+});
+
+// GET: Fetch all payments (deposits/withdrawals)
+router.get('/payments', checkAdmin, async (req, res) => {
+  try {
+    console.log('\n💰 [GET /api/admin/payments] Fetching all payments');
+
+    if (!supabase) {
+      console.error('❌ Supabase client is not initialized');
+      return res.status(503).json({ 
+        error: 'Service unavailable',
+        success: false
+      });
+    }
+
+    // Fetch all payments
+    const { data: payments, error: payError } = await supabase
+      .from('payments')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (payError) {
+      console.warn('⚠️  No payments found or fetch error:', payError.message);
+      return res.json({ success: true, payments: [] });
+    }
+
+    console.log(`✅ Retrieved ${payments?.length || 0} payments`);
+
+    res.json({ 
+      success: true, 
+      payments: payments || []
+    });
+  } catch (error) {
+    console.error('❌ Get payments error:', error);
+    res.json({ 
+      success: true, 
+      payments: [],
+      message: 'Could not fetch payments'
+    });
+  }
+});
+
 module.exports = router;

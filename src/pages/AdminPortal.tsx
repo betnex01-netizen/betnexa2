@@ -49,6 +49,8 @@ const AdminPortal = () => {
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [resolvingPayment, setResolvingPayment] = useState<string | null>(null);
   const [resolutionData, setResolutionData] = useState<Record<string, { mpesaReceipt?: string; resultDesc?: string }>>({});
+  const [allTransactions, setAllTransactions] = useState<any[]>([]);
+  const [allPayments, setAllPayments] = useState<any[]>([]);
   
   // User balance editing state
   const [editingBalance, setEditingBalance] = useState<string | null>(null);
@@ -93,6 +95,11 @@ const AdminPortal = () => {
   useEffect(() => {
     console.log('📦 Fetching users from backend...');
     fetchUsersFromBackend();
+    
+    // Also fetch transactions and payments
+    console.log('📦 Fetching transactions and payments...');
+    fetchAllTransactions();
+    fetchAllPayments();
   }, []);
 
   const handleAdminActivateWithdrawal = async (userId: string, userName: string) => {
@@ -607,6 +614,46 @@ const AdminPortal = () => {
       }
     } catch (error) {
       console.error("Failed to fetch failed payments:", error);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  // Fetch all transactions
+  const fetchAllTransactions = async () => {
+    setLoadingPayments(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/transactions`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAllTransactions(data.transactions || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch transactions:", error);
+    } finally {
+      setLoadingPayments(false);
+    }
+  };
+
+  // Fetch all payments
+  const fetchAllPayments = async () => {
+    setLoadingPayments(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/payments`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await response.json();
+      if (data.success) {
+        setAllPayments(data.payments || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch payments:", error);
     } finally {
       setLoadingPayments(false);
     }
