@@ -471,7 +471,7 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
 
     // Auto-set kickoff_start_time when marking as live
     if (sanitizedUpdates.status === 'live' && !sanitizedUpdates.kickoff_start_time) {
-      sanitizedUpdates.kickoff_start_time = Date.now();
+      sanitizedUpdates.kickoff_start_time = new Date().toISOString();
       console.log('   Auto-setting kickoff_start_time:', sanitizedUpdates.kickoff_start_time);
     }
 
