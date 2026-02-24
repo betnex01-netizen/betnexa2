@@ -77,6 +77,10 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               homeScore: g.home_score || 0,
               awayScore: g.away_score || 0,
               minute: g.minute || 0,
+              kickoffStartTime: g.kickoff_start_time || undefined,
+              isKickoffStarted: g.is_kickoff_started || false,
+              gamePaused: g.game_paused || false,
+              kickoffPausedAt: g.kickoff_paused_at || undefined,
             }));
             setGames(transformedGames);
             setLoadError(null);
@@ -101,6 +105,48 @@ export function OddsProvider({ children }: { children: ReactNode }) {
     };
 
     fetchGames();
+
+    // Auto-refresh games every 5 seconds when there are live games
+    const autoRefreshInterval = setInterval(async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+        const response = await fetch(`${apiUrl}/api/admin/games`, {
+          signal: AbortSignal.timeout(10000),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.games)) {
+            const transformedGames: GameOdds[] = data.games.map((g: any) => ({
+              id: g.game_id || g.id,
+              league: g.league || '',
+              homeTeam: g.home_team,
+              awayTeam: g.away_team,
+              homeOdds: parseFloat(g.home_odds) || 2.0,
+              drawOdds: parseFloat(g.draw_odds) || 3.0,
+              awayOdds: parseFloat(g.away_odds) || 3.0,
+              time: g.scheduled_time || g.time || new Date().toISOString(),
+              status: g.status || 'upcoming',
+              markets: g.markets || {},
+              homeScore: g.home_score || 0,
+              awayScore: g.away_score || 0,
+              minute: g.minute || 0,
+              kickoffStartTime: g.kickoff_start_time || undefined,
+              isKickoffStarted: g.is_kickoff_started || false,
+              gamePaused: g.game_paused || false,
+              kickoffPausedAt: g.kickoff_paused_at || undefined,
+            }));
+            setGames(transformedGames);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Auto-refresh failed:', error);
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(autoRefreshInterval);
+    };
   }, []);
 
   const refreshGames = async () => {
@@ -134,6 +180,10 @@ export function OddsProvider({ children }: { children: ReactNode }) {
             homeScore: g.home_score || 0,
             awayScore: g.away_score || 0,
             minute: g.minute || 0,
+            kickoffStartTime: g.kickoff_start_time || undefined,
+            isKickoffStarted: g.is_kickoff_started || false,
+            gamePaused: g.game_paused || false,
+            kickoffPausedAt: g.kickoff_paused_at || undefined,
           }));
           setGames(transformedGames);
         }

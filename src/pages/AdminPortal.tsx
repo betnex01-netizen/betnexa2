@@ -530,14 +530,11 @@ const AdminPortal = () => {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
-      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/end`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone: loggedInUser.phone,
-          status: "finished",
-          isKickoffStarted: false,
-          gamePaused: false,
         })
       });
 
@@ -546,8 +543,6 @@ const AdminPortal = () => {
       if (data.success) {
         updateGame(gameId, {
           status: "finished",
-          isKickoffStarted: false,
-          gamePaused: false,
         });
         alert('✅ Game finished!');
       } else {
@@ -557,6 +552,38 @@ const AdminPortal = () => {
     } catch (error) {
       console.error('Error ending game:', error);
       alert('Failed to end game: ' + error.message);
+    }
+  };
+
+  const markHalftime = async (gameId: string) => {
+    const game = games.find((g) => g.id === gameId);
+    if (!game) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      console.log(`⏱️  Marking halftime for game: ${gameId}`);
+      
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/halftime`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+        })
+      });
+
+      const data = await response.json();
+      console.log('📊 Halftime response:', data);
+
+      if (data.success) {
+        updateGame(gameId, { isHalftime: true });
+        alert('✅ Halftime marked!');
+      } else {
+        console.error('❌ Halftime error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to mark halftime'}`);
+      }
+    } catch (error) {
+      console.error('Error marking halftime:', error);
+      alert('Failed to mark halftime: ' + error.message);
     }
   };
 
@@ -903,6 +930,17 @@ const AdminPortal = () => {
                                 className="text-xs"
                               >
                                 <Play className="mr-1 h-3 w-3" /> Resume
+                              </Button>
+                            )}
+
+                            {game.status === "live" && !game.isHalftime && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => markHalftime(game.id)}
+                                className="text-xs"
+                              >
+                                ⏱️ Halftime
                               </Button>
                             )}
 

@@ -453,7 +453,7 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
     const allowedFields = [
       'league', 'home_team', 'away_team', 'home_odds', 'draw_odds', 'away_odds',
       'scheduled_time', 'status', 'home_score', 'away_score', 'minute',
-      'markets', 'is_kickoff_started', 'game_paused'
+      'markets', 'is_kickoff_started', 'game_paused', 'kickoff_start_time', 'is_halftime'
     ];
 
     const sanitizedUpdates = {};
@@ -468,6 +468,12 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
     });
 
     console.log('   Sanitized updates:', JSON.stringify(sanitizedUpdates, null, 2));
+
+    // Auto-set kickoff_start_time when marking as live
+    if (sanitizedUpdates.status === 'live' && !sanitizedUpdates.kickoff_start_time) {
+      sanitizedUpdates.kickoff_start_time = Date.now();
+      console.log('   Auto-setting kickoff_start_time:', sanitizedUpdates.kickoff_start_time);
+    }
 
     if (Object.keys(sanitizedUpdates).length === 0) {
       console.warn('⚠️ No valid fields to update');
@@ -768,6 +774,118 @@ router.put('/games/:gameId/markets', checkAdmin, async (req, res) => {
   } catch (error) {
     console.error('❌ Update markets error:', error.message);
     res.status(500).json({ error: 'Failed to update markets', details: error.message });
+  }
+});
+
+// PUT: Mark halftime
+router.put('/games/:gameId/halftime', checkAdmin, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    console.log(`⏱️  Marking halftime for game: ${gameId}`);
+
+    // Find the game first - check if gameId is UUID or text game_id
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId looks like UUID, searching by id`);
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId looks like text, searching by game_id`);
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
+
+    if (findError) {
+      console.error('❌ Error finding game:', findError.message);
+      return res.status(400).json({ error: 'Failed to find game', details: findError.message });
+    }
+
+    if (!existingGame) {
+      console.error('❌ No game found for halftime:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Mark halftime
+    const updates = {
+      is_halftime: true,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: game, error } = await supabase
+      .from('games')
+      .update(updates)
+      .eq('id', existingGame.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error marking halftime:', error.message);
+      return res.status(400).json({ error: 'Failed to mark halftime', details: error.message });
+    }
+
+    console.log(`✅ Halftime marked for game ${gameId}`);
+    res.json({ success: true, game });
+  } catch (error) {
+    console.error('❌ Halftime error:', error.message);
+    res.status(500).json({ error: 'Failed to mark halftime', details: error.message });
+  }
+});
+
+// PUT: End game
+router.put('/games/:gameId/end', checkAdmin, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    console.log(`🏁 Ending game: ${gameId}`);
+
+    // Find the game first - check if gameId is UUID or text game_id
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId looks like UUID, searching by id`);
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId looks like text, searching by game_id`);
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
+
+    if (findError) {
+      console.error('❌ Error finding game:', findError.message);
+      return res.status(400).json({ error: 'Failed to find game', details: findError.message });
+    }
+
+    if (!existingGame) {
+      console.error('❌ No game found for ending:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // End the game
+    const updates = {
+      status: 'finished',
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: game, error } = await supabase
+      .from('games')
+      .update(updates)
+      .eq('id', existingGame.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error ending game:', error.message);
+      return res.status(400).json({ error: 'Failed to end game', details: error.message });
+    }
+
+    console.log(`✅ Game ended: ${gameId}`);
+    res.json({ success: true, game });
+  } catch (error) {
+    console.error('❌ End game error:', error.message);
+    res.status(500).json({ error: 'Failed to end game', details: error.message });
   }
 });
 

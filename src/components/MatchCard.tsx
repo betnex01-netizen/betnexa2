@@ -104,21 +104,21 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
   useEffect(() => {
     if (gameFromContext) {
       const updateStatus = () => {
-        // Calculate real-time minute based on kickoff start time
         let minute = gameFromContext.minute || 0;
         
-        if (gameFromContext.isKickoffStarted && gameFromContext.kickoffStartTime !== undefined) {
+        // Calculate minute from kickoff_start_time when game is live
+        if (gameFromContext.status === "live" && gameFromContext.kickoff_start_time) {
           const { minute: calculatedMinute } = calculateMatchMinute(
-            gameFromContext.kickoffStartTime,
-            gameFromContext.gamePaused || false,
-            gameFromContext.kickoffPausedAt,
+            gameFromContext.kickoff_start_time,
+            gameFromContext.game_paused || false,
+            gameFromContext.kickoff_paused_at,
             gameFromContext.minute
           );
           minute = calculatedMinute;
         }
 
         setLiveStatus({
-          isLive: gameFromContext.status === "live" && gameFromContext.isKickoffStarted,
+          isLive: gameFromContext.status === "live",
           minute: minute,
           status: gameFromContext.status,
         });
