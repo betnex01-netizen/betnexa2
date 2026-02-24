@@ -126,12 +126,12 @@ const Index = () => {
 
       <PromoBanner />
 
-      {/* Upcoming Matches */}
+      {/* Matches */}
       <section className="container mx-auto px-4 py-10">
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-display text-xl font-bold uppercase tracking-wider text-foreground">
             <TrendingUp className="mr-2 inline h-5 w-5 text-primary" />
-            Upcoming Matches
+            Matches
           </h2>
           <Button variant="ghost" size="sm" className="text-xs text-primary">View All →</Button>
         </div>
@@ -160,7 +160,7 @@ const Index = () => {
             })
           ) : (
             <div className="col-span-full text-center py-12">
-              <p className="text-muted-foreground">No upcoming matches available. Check back soon!</p>
+              <p className="text-muted-foreground">No matches available. Check back soon!</p>
             </div>
           )}
         </div>
