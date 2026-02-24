@@ -380,7 +380,7 @@ const AdminPortal = () => {
         body: JSON.stringify({
           phone: loggedInUser.phone,
           gamePaused: true,
-          kickoffPausedAt: Date.now(),
+          kickoffPausedAt: new Date().toISOString(),
         })
       });
 
@@ -389,7 +389,7 @@ const AdminPortal = () => {
       if (data.success) {
         updateGame(gameId, {
           gamePaused: true,
-          kickoffPausedAt: Date.now(),
+          kickoffPausedAt: new Date().toISOString(),
         });
         alert('⏸️ Game paused!');
       } else {
@@ -407,8 +407,18 @@ const AdminPortal = () => {
     if (!game || game.kickoffStartTime === undefined || game.kickoffPausedAt === undefined) return;
 
     try {
-      const pauseDuration = Date.now() - game.kickoffPausedAt;
-      const newKickoffStartTime = game.kickoffStartTime + pauseDuration;
+      // Convert ISO strings to milliseconds for calculation
+      const kickoffStartMs = typeof game.kickoffStartTime === 'string' 
+        ? new Date(game.kickoffStartTime).getTime() 
+        : game.kickoffStartTime;
+      const pausedAtMs = typeof game.kickoffPausedAt === 'string' 
+        ? new Date(game.kickoffPausedAt).getTime() 
+        : game.kickoffPausedAt;
+      
+      // Calculate pause duration and adjust kickoff start time
+      const pauseDuration = Date.now() - pausedAtMs;
+      const newKickoffStartTimeMs = kickoffStartMs + pauseDuration;
+      const newKickoffStartTime = new Date(newKickoffStartTimeMs).toISOString();
 
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {

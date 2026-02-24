@@ -3,24 +3,32 @@
  * Accounts for pauses and returns minute + seconds
  */
 export function calculateMatchMinute(
-  kickoffStartTime: number | undefined,
+  kickoffStartTime: number | string | undefined,
   gamePaused: boolean,
-  kickoffPausedAt: number | undefined,
+  kickoffPausedAt: number | string | undefined,
   currentMinute?: number
 ): { minute: number; seconds: number } {
   if (!kickoffStartTime) {
     return { minute: 0, seconds: 0 };
   }
 
+  // Convert ISO string to milliseconds if needed
+  const kickoffMs = typeof kickoffStartTime === 'string' 
+    ? new Date(kickoffStartTime).getTime() 
+    : kickoffStartTime;
+
   const now = Date.now();
   let elapsedMs = 0;
 
   if (gamePaused && kickoffPausedAt) {
     // If paused, use the time up to when it was paused
-    elapsedMs = kickoffPausedAt - kickoffStartTime;
+    const pausedMs = typeof kickoffPausedAt === 'string' 
+      ? new Date(kickoffPausedAt).getTime() 
+      : kickoffPausedAt;
+    elapsedMs = pausedMs - kickoffMs;
   } else {
     // If playing, use time up to now
-    elapsedMs = now - kickoffStartTime;
+    elapsedMs = now - kickoffMs;
   }
 
   // Convert to seconds and then to minutes:seconds
