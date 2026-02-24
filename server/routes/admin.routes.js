@@ -441,6 +441,7 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
     const updates = req.body;
 
     console.log(`📝 Updating game: ${gameId}`);
+    console.log('   Received updates:', JSON.stringify(updates, null, 2));
 
     // Filter allowed fields
     const allowedFields = [
@@ -451,11 +452,21 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
 
     const sanitizedUpdates = {};
     Object.keys(updates).forEach((key) => {
+      // Skip phone and other auth fields
+      if (key === 'phone') return;
+      
       const dbKey = key.includes('_') ? key : key.replace(/([A-Z])/g, '_$1').toLowerCase();
       if (allowedFields.includes(dbKey)) {
         sanitizedUpdates[dbKey] = updates[key];
       }
     });
+
+    console.log('   Sanitized updates:', JSON.stringify(sanitizedUpdates, null, 2));
+
+    if (Object.keys(sanitizedUpdates).length === 0) {
+      console.warn('⚠️ No valid fields to update');
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
 
     sanitizedUpdates.updated_at = new Date().toISOString();
 
@@ -468,8 +479,12 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
       .single();
 
     if (error) {
-      console.error('❌ Error updating game:', error.message);
-      throw error;
+      console.error('❌ Error updating game:', error.message, error.code, error.details);
+      return res.status(400).json({ 
+        error: 'Failed to update game', 
+        details: error.message,
+        code: error.code
+      });
     }
 
     if (!game) {
@@ -477,7 +492,7 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
-    console.log(`✅ Game updated successfully`);
+    console.log(`✅ Game updated successfully:`, game.game_id || game.id);
 
     // Log admin action (optional)
     try {
@@ -498,8 +513,12 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
 
     res.json({ success: true, game });
   } catch (error) {
-    console.error('Update game error:', error);
-    res.status(500).json({ error: 'Failed to update game' });
+    console.error('❌ Update game error:', error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to update game', 
+      details: error.message 
+    });
   }
 });
 

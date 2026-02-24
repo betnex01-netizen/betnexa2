@@ -360,12 +360,14 @@ const AdminPortal = () => {
           gamePaused: false,
           kickoffStartTime: Date.now(),
         });
+        alert('✅ Kickoff started!');
       } else {
-        alert(`Error: ${data.error || 'Failed to start kickoff'}`);
+        console.error('Start kickoff error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to start kickoff'}`);
       }
     } catch (error) {
       console.error('Error starting kickoff:', error);
-      alert('Failed to start kickoff');
+      alert('Failed to start kickoff: ' + error.message);
     }
   };
 
@@ -392,12 +394,14 @@ const AdminPortal = () => {
           gamePaused: true,
           kickoffPausedAt: Date.now(),
         });
+        alert('⏸️ Game paused!');
       } else {
-        alert(`Error: ${data.error || 'Failed to pause game'}`);
+        console.error('Pause error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to pause game'}`);
       }
     } catch (error) {
       console.error('Error pausing game:', error);
-      alert('Failed to pause game');
+      alert('Failed to pause game: ' + error.message);
     }
   };
 
@@ -431,12 +435,14 @@ const AdminPortal = () => {
           kickoffStartTime: newKickoffStartTime,
           kickoffPausedAt: undefined,
         });
+        alert('▶️ Game resumed!');
       } else {
-        alert(`Error: ${data.error || 'Failed to resume game'}`);
+        console.error('Resume error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to resume game'}`);
       }
     } catch (error) {
       console.error('Error resuming game:', error);
-      alert('Failed to resume game');
+      alert('Failed to resume game: ' + error.message);
     }
   };
 
@@ -543,18 +549,22 @@ const AdminPortal = () => {
           isKickoffStarted: false,
           gamePaused: false,
         });
+        alert('✅ Game finished!');
       } else {
-        alert(`Error: ${data.error || 'Failed to end game'}`);
+        console.error('End game error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to end game'}`);
       }
     } catch (error) {
       console.error('Error ending game:', error);
-      alert('Failed to end game');
+      alert('Failed to end game: ' + error.message);
     }
   };
 
   const markGameLive = async (gameId: string) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      console.log(`🔴 Marking game as live: ${gameId}`);
+      
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -565,15 +575,18 @@ const AdminPortal = () => {
       });
 
       const data = await response.json();
+      console.log('📊 Mark live response:', data);
 
       if (data.success) {
         updateGame(gameId, { status: "live" });
+        alert('✅ Game marked as live!');
       } else {
-        alert(`Error: ${data.error || 'Failed to mark game as live'}`);
+        console.error('❌ Mark live error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to mark game as live'}`);
       }
     } catch (error) {
       console.error('Error marking game live:', error);
-      alert('Failed to mark game as live');
+      alert('Failed to mark game as live: ' + error.message);
     }
   };
 
