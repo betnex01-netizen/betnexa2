@@ -72,6 +72,11 @@ const AdminPortal = () => {
             game.minute
           );
 
+          // Debug log
+          if (minute === 0 && seconds === 0) {
+            console.log(`✅ Game ${game.id} - Minute: ${minute}:${String(seconds).padStart(2, "0")}`);
+          }
+
           // Update game in context - ONLY update minute/seconds, don't auto-pause at 45
           if (minute > 95) {
             // Game ends at 95 minutes
@@ -329,6 +334,8 @@ const AdminPortal = () => {
 
     try {
       const now = new Date().toISOString();
+      console.log('🚀 Starting kickoff with timestamp:', now);
+      
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
         method: 'PUT',
@@ -337,6 +344,7 @@ const AdminPortal = () => {
           phone: loggedInUser.phone,
           status: "live",
           minute: 0,
+          seconds: 0,
           homeScore: 0,
           awayScore: 0,
           isKickoffStarted: true,
@@ -346,10 +354,13 @@ const AdminPortal = () => {
       });
 
       const data = await response.json();
+      console.log('📊 Kickoff response:', data);
 
       if (data.success) {
-        // Get kickoff_start_time from response (backend uses snake_case)
+        // Get kickoff_start_time from response or use the one we sent
         const kickoffStartTime = data.game?.kickoff_start_time || now;
+        console.log('⏱️  Setting kickoffStartTime to:', kickoffStartTime);
+        
         updateGame(gameId, {
           status: "live",
           minute: 0,

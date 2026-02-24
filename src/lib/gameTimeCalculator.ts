@@ -9,15 +9,28 @@ export function calculateMatchMinute(
   currentMinute?: number
 ): { minute: number; seconds: number } {
   if (!kickoffStartTime) {
+    console.log('⚠️  No kickoffStartTime provided');
     return { minute: 0, seconds: 0 };
   }
 
   // Convert ISO string to milliseconds if needed
-  const kickoffMs = typeof kickoffStartTime === 'string' 
-    ? new Date(kickoffStartTime).getTime() 
-    : kickoffStartTime;
+  let kickoffMs: number;
+  try {
+    kickoffMs = typeof kickoffStartTime === 'string' 
+      ? new Date(kickoffStartTime).getTime() 
+      : kickoffStartTime;
+  } catch (e) {
+    console.error('❌ Error parsing kickoffStartTime:', kickoffStartTime, e);
+    return { minute: 0, seconds: 0 };
+  }
 
+  // Validate kickoff timestamp makes sense (not in the future, not older than 180 minutes)
   const now = Date.now();
+  if (kickoffMs > now) {
+    console.warn('⚠️  Kickoff time is in the future:', kickoffStartTime);
+    return { minute: 0, seconds: 0 };
+  }
+
   let elapsedMs = 0;
 
   if (gamePaused && kickoffPausedAt) {
@@ -29,6 +42,12 @@ export function calculateMatchMinute(
   } else {
     // If playing, use time up to now
     elapsedMs = now - kickoffMs;
+  }
+
+  // Prevent negative elapsed time
+  if (elapsedMs < 0) {
+    console.warn('⚠️  Negative elapsed time detected:', elapsedMs);
+    return { minute: 0, seconds: 0 };
   }
 
   // Convert to seconds and then to minutes:seconds

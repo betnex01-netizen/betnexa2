@@ -452,7 +452,7 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
     // Filter allowed fields
     const allowedFields = [
       'league', 'home_team', 'away_team', 'home_odds', 'draw_odds', 'away_odds',
-      'scheduled_time', 'status', 'home_score', 'away_score', 'minute',
+      'scheduled_time', 'status', 'home_score', 'away_score', 'minute', 'seconds',
       'markets', 'is_kickoff_started', 'game_paused', 'kickoff_start_time', 'kickoff_paused_at', 'is_halftime'
     ];
 
@@ -469,10 +469,13 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
 
     console.log('   Sanitized updates:', JSON.stringify(sanitizedUpdates, null, 2));
 
-    // Auto-set kickoff_start_time when marking as live
-    if (sanitizedUpdates.status === 'live' && !sanitizedUpdates.kickoff_start_time) {
+    // Auto-set kickoff_start_time ONLY when status changes to live AND no kickoff_start_time provided
+    if (sanitizedUpdates.status === 'live' && sanitizedUpdates.is_kickoff_started && !sanitizedUpdates.kickoff_start_time) {
       sanitizedUpdates.kickoff_start_time = new Date().toISOString();
       console.log('   Auto-setting kickoff_start_time:', sanitizedUpdates.kickoff_start_time);
+    } else if (sanitizedUpdates.status === 'live' && sanitizedUpdates.kickoff_start_time) {
+      // Prioritize frontend-sent kickoff_start_time
+      console.log('   Using frontend-provided kickoff_start_time:', sanitizedUpdates.kickoff_start_time);
     }
 
     if (Object.keys(sanitizedUpdates).length === 0) {
