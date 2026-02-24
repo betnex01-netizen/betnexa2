@@ -102,7 +102,56 @@ router.get('/games', async (req, res) => {
 
     console.log(`✅ Retrieved ${games?.length || 0} games successfully`);
 
-    res.json({ success: true, games: games || [] });
+    // Fetch markets for each game
+    let gamesWithMarkets = games || [];
+    if (gamesWithMarkets.length > 0) {
+      try {
+        const gameIds = gamesWithMarkets.map(g => g.id || g.game_id);
+        const { data: markets, error: marketsError } = await supabase
+          .from('markets')
+          .select('*')
+          .in('game_id', gameIds);
+
+        if (!marketsError && markets) {
+          console.log(`✅ Retrieved ${markets.length} market entries`);
+          
+          // Group markets by game_id
+          const marketsByGame: Record<string, Record<string, number>> = {};
+          markets.forEach((market: any) => {
+            const gameId = market.game_id;
+            if (!marketsByGame[gameId]) {
+              marketsByGame[gameId] = {};
+            }
+            // Store market with its key (e.g., 'correct_score:3:1')
+            if (market.market_key) {
+              marketsByGame[gameId][market.market_key] = parseFloat(market.odds);
+            }
+          });
+
+          // Attach markets to each game
+          gamesWithMarkets = gamesWithMarkets.map((game: any) => ({
+            ...game,
+            markets: marketsByGame[game.id || game.game_id] || {}
+          }));
+        } else if (marketsError) {
+          console.warn('⚠️ Failed to fetch markets:', marketsError.message);
+          // Continue without markets data
+          gamesWithMarkets = gamesWithMarkets.map((game: any) => ({
+            ...game,
+            markets: {}
+          }));
+        }
+      } catch (marketError) {
+        console.warn('⚠️ Error processing markets:', marketError);
+        // Continue without markets data
+        gamesWithMarkets = gamesWithMarkets.map((game: any) => ({
+          ...game,
+          markets: {}
+        }));
+      }
+    }
+
+    res.json({ success: true, games: gamesWithMarkets });
   } catch (error) {
     console.error('❌ Get games error:', error.message || error);
     // Return empty array instead of error so frontend can load

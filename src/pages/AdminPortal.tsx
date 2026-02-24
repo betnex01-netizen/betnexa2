@@ -226,7 +226,8 @@ const AdminPortal = () => {
     if (!game) return;
 
     try {
-      const newMarkets = generateMarketOdds(game.homeOdds, game.drawOdds, game.awayOdds);
+      // Preserve correct score odds from database, only regenerate other odds
+      const newMarkets = generateMarketOdds(game.homeOdds, game.drawOdds, game.awayOdds, game.markets);
       
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${id}/markets`, {
@@ -467,7 +468,8 @@ const AdminPortal = () => {
 
     try {
       const newOdds = adjustOddsBasedOnScore(game.homeOdds, game.drawOdds, game.awayOdds, homeScore, awayScore);
-      const newMarkets = generateMarketOdds(newOdds.homeOdds, newOdds.drawOdds, newOdds.awayOdds);
+      // Pass existing markets to preserve correct score odds from database
+      const newMarkets = generateMarketOdds(newOdds.homeOdds, newOdds.drawOdds, newOdds.awayOdds, game.markets);
 
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/score`, {

@@ -45,32 +45,34 @@ interface MatchCardProps {
   selectedOdd?: string | null;
 }
 
-export function generateMarketOdds(homeOdds: number, drawOdds: number, awayOdds: number): MatchMarkets {
+export function generateMarketOdds(homeOdds: number, drawOdds: number, awayOdds: number, existingMarkets?: Record<string, number>): MatchMarkets {
   const h = homeOdds;
   const d = drawOdds;
   const a = awayOdds;
   const markets: MatchMarkets = {
-    bttsYes: +(1.6 + Math.random() * 0.5).toFixed(2),
-    bttsNo: +(2.0 + Math.random() * 0.5).toFixed(2),
-    over25: +(1.7 + Math.random() * 0.6).toFixed(2),
-    under25: +(1.9 + Math.random() * 0.5).toFixed(2),
-    over15: +(1.2 + Math.random() * 0.3).toFixed(2),
-    under15: +(3.5 + Math.random() * 1.0).toFixed(2),
-    doubleChanceHomeOrDraw: +(1 / (1/h + 1/d) * 0.9).toFixed(2),
-    doubleChanceAwayOrDraw: +(1 / (1/a + 1/d) * 0.9).toFixed(2),
-    doubleChanceHomeOrAway: +(1 / (1/h + 1/a) * 0.9).toFixed(2),
-    htftHomeHome: +(h * 1.8).toFixed(2),
-    htftDrawDraw: +(d * 2.0).toFixed(2),
-    htftAwayAway: +(a * 1.8).toFixed(2),
+    bttsYes: existingMarkets?.['btts:yes'] ?? +(1.6 + Math.random() * 0.5).toFixed(2),
+    bttsNo: existingMarkets?.['btts:no'] ?? +(2.0 + Math.random() * 0.5).toFixed(2),
+    over25: existingMarkets?.['over_under:over_2.5'] ?? +(1.7 + Math.random() * 0.6).toFixed(2),
+    under25: existingMarkets?.['over_under:under_2.5'] ?? +(1.9 + Math.random() * 0.5).toFixed(2),
+    over15: existingMarkets?.['over_under:over_1.5'] ?? +(1.2 + Math.random() * 0.3).toFixed(2),
+    under15: existingMarkets?.['over_under:under_1.5'] ?? +(3.5 + Math.random() * 1.0).toFixed(2),
+    doubleChanceHomeOrDraw: existingMarkets?.['double_chance:1X'] ?? +(1 / (1/h + 1/d) * 0.9).toFixed(2),
+    doubleChanceAwayOrDraw: existingMarkets?.['double_chance:X2'] ?? +(1 / (1/a + 1/d) * 0.9).toFixed(2),
+    doubleChanceHomeOrAway: existingMarkets?.['double_chance:12'] ?? +(1 / (1/h + 1/a) * 0.9).toFixed(2),
+    htftHomeHome: existingMarkets?.['half_time_result:1'] ?? +(h * 1.8).toFixed(2),
+    htftDrawDraw: existingMarkets?.['half_time_result:X'] ?? +(d * 2.0).toFixed(2),
+    htftAwayAway: existingMarkets?.['half_time_result:2'] ?? +(a * 1.8).toFixed(2),
     htftDrawHome: +(d * h * 0.7).toFixed(2),
     htftDrawAway: +(d * a * 0.7).toFixed(2),
   };
 
-  // Generate correct scores from 0:0 to 4:4
+  // Generate correct scores from 0:0 to 4:4, but preserve database odds if they exist
   for (let hScore = 0; hScore <= 4; hScore++) {
     for (let aScore = 0; aScore <= 4; aScore++) {
       const key = `cs${hScore}${aScore}`;
-      markets[key] = +(3.0 + Math.random() * 20).toFixed(2);
+      const dbKey = `correct_score:${hScore}:${aScore}`;
+      // Preserve database odds, only generate if not in database
+      markets[key] = existingMarkets?.[dbKey] ?? +(3.0 + Math.random() * 20).toFixed(2);
     }
   }
 
@@ -127,7 +129,7 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
     }
   }, [gameFromContext]);
 
-  const markets = displayGame.markets || generateMarketOdds(displayGame.homeOdds, displayGame.drawOdds, displayGame.awayOdds);
+  const markets = generateMarketOdds(displayGame.homeOdds, displayGame.drawOdds, displayGame.awayOdds, displayGame.markets);
 
   const handleSelect = (type: string, odds: number) => {
     onSelectOdd?.(match.id, type, odds);
