@@ -471,10 +471,34 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
     sanitizedUpdates.updated_at = new Date().toISOString();
 
     // Try to update by either UUID (id) or text game_id
+    // First, find the game
+    const { data: existingGame, error: findError } = await supabase
+      .from('games')
+      .select('*')
+      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
+      .maybeSingle();
+
+    if (findError) {
+      console.error('❌ Error finding game:', findError.message, findError.code);
+      return res.status(400).json({ 
+        error: 'Failed to find game', 
+        details: findError.message,
+        code: findError.code
+      });
+    }
+
+    if (!existingGame) {
+      console.error('❌ No game found for update:', gameId);
+      return res.status(404).json({ error: 'Game not found', gameId });
+    }
+
+    console.log(`   Found game with id: ${existingGame.id}, game_id: ${existingGame.game_id}`);
+
+    // Now update using the UUID
     const { data: game, error } = await supabase
       .from('games')
       .update(sanitizedUpdates)
-      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
+      .eq('id', existingGame.id)
       .select()
       .single();
 
@@ -485,11 +509,6 @@ router.put('/games/:gameId', checkAdmin, async (req, res) => {
         details: error.message,
         code: error.code
       });
-    }
-
-    if (!game) {
-      console.error('❌ No game found for update:', gameId);
-      return res.status(404).json({ error: 'Game not found' });
     }
 
     console.log(`✅ Game updated successfully:`, game.game_id || game.id);
@@ -529,11 +548,28 @@ router.delete('/games/:gameId', checkAdmin, async (req, res) => {
 
     console.log(`🗑️  Deleting game: ${gameId}`);
 
-    // Try to delete by either UUID (id) or text game_id
+    // Find the game first
+    const { data: existingGame, error: findError } = await supabase
+      .from('games')
+      .select('*')
+      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
+      .maybeSingle();
+
+    if (findError) {
+      console.error('❌ Error finding game:', findError.message);
+      throw findError;
+    }
+
+    if (!existingGame) {
+      console.error('❌ No game found for delete:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Try to delete by UUID
     const { error } = await supabase
       .from('games')
       .delete()
-      .or(`id.eq.${gameId},game_id.eq.${gameId}`);
+      .eq('id', existingGame.id);
 
     if (error) {
       console.error('❌ Error deleting game:', error.message);
@@ -576,11 +612,30 @@ router.put('/games/:gameId/score', checkAdmin, async (req, res) => {
       updated_at: new Date().toISOString(),
     };
 
-    // Try to update by either UUID (id) or text game_id
+    // Find the game first
+    const { data: existingGame, error: findError } = await supabase
+      .from('games')
+      .select('*')
+      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
+      .maybeSingle();
+
+    if (findError) {
+      console.error('❌ Error finding game:', findError.message);
+      throw findError;
+    }
+
+    if (!existingGame) {
+      console.error('❌ No game found for score update:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    console.log(`   Found game with id: ${existingGame.id}`);
+
+    // Try to update by UUID
     let { data: game, error } = await supabase
       .from('games')
       .update(updates)
-      .or(`id.eq.${gameId},game_id.eq.${gameId}`)
+      .eq('id', existingGame.id)
       .select()
       .single();
 
