@@ -16,20 +16,50 @@ import {
   Edit2,
   CheckCircle,
   Wallet,
+  Download,
 } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useUser } from "@/context/UserContext";
 import { useBets } from "@/context/BetContext";
+import betnexaAPK from "@/assets/betnexa apk.apk";
 
 export default function Profile() {
   const { user, updateUser, logout } = useUser();
   const { balance } = useBets();
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState(user);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadNotification, setDownloadNotification] = useState(false);
 
   const handleSave = () => {
     updateUser(editData);
     setIsEditing(false);
+  };
+
+  const handleDownloadAPK = async () => {
+    try {
+      setIsDownloading(true);
+      setDownloadNotification(true);
+
+      // Create a temporary link to download the APK
+      const link = document.createElement("a");
+      link.href = betnexaAPK;
+      link.download = "betnexa.apk";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Hide notification after the download starts
+      setTimeout(() => {
+        setDownloadNotification(false);
+      }, 3000);
+
+      setIsDownloading(false);
+    } catch (error) {
+      console.error("Error downloading APK:", error);
+      setIsDownloading(false);
+      alert("Error downloading APK. Please try again.");
+    }
   };
 
   const stats = [
@@ -197,8 +227,17 @@ export default function Profile() {
           </TabsContent>
         </Tabs>
 
-        {/* Logout Button */}
-        <div className="mt-8">
+        {/* Logout and Download Button */}
+        <div className="mt-8 space-y-3">
+          <Button
+            variant="outline"
+            className="w-full text-primary border-primary hover:bg-primary/10"
+            onClick={handleDownloadAPK}
+            disabled={isDownloading}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            {isDownloading ? "Downloading APK..." : "Download Mobile App (APK)"}
+          </Button>
           <Button
             variant="ghost"
             className="w-full text-red-500 hover:bg-red-500/10"
@@ -207,6 +246,14 @@ export default function Profile() {
             <LogOut className="mr-2 h-4 w-4" /> Logout
           </Button>
         </div>
+
+        {/* Download Notification Toast */}
+        {downloadNotification && (
+          <div className="fixed bottom-24 left-4 right-4 bg-primary text-primary-foreground rounded-lg px-4 py-3 shadow-lg flex items-center gap-2 z-50 animate-fade-up">
+            <Download className="h-4 w-4 animate-pulse" />
+            <span className="text-sm font-medium">Download in progress... Please wait</span>
+          </div>
+        )}
       </div>
 
       <Footer />

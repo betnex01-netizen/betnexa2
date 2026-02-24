@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Menu, X, User, Wallet, Bell, Search, ChevronDown, LogOut } from "lucide-react";
+import { Menu, X, User, Wallet, Bell, Search, ChevronDown, LogOut, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import Logo from "@/assets/betnexa official logo .jpeg";
+import betnexaAPK from "@/assets/betnexa apk.apk";
 import { useBets } from "@/context/BetContext";
 import { useUser } from "@/context/UserContext";
 
@@ -17,6 +18,8 @@ const sports = [
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadNotification, setDownloadNotification] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { balance } = useBets();
@@ -25,6 +28,32 @@ export function Header() {
   const handleLogout = () => {
     logout();
     navigate("/login");
+  };
+
+  const handleDownloadAPK = async () => {
+    try {
+      setIsDownloading(true);
+      setDownloadNotification(true);
+
+      // Create a temporary link to download the APK
+      const link = document.createElement("a");
+      link.href = betnexaAPK;
+      link.download = "betnexa.apk";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      // Hide notification after the download starts
+      setTimeout(() => {
+        setDownloadNotification(false);
+      }, 3000);
+
+      setIsDownloading(false);
+    } catch (error) {
+      console.error("Error downloading APK:", error);
+      setIsDownloading(false);
+      alert("Error downloading APK. Please try again.");
+    }
   };
 
   return (
@@ -129,6 +158,18 @@ export function Header() {
                 </Button>
               </Link>
             )}
+            {/* Download APK Button */}
+            <button
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-primary hover:bg-secondary w-full font-medium transition-colors"
+              onClick={() => {
+                handleDownloadAPK();
+                setMenuOpen(false);
+              }}
+              disabled={isDownloading}
+            >
+              <Download className="h-4 w-4" />
+              {isDownloading ? "Downloading APK..." : "Download APK"}
+            </button>
             {isLoggedIn && (
               <button
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-secondary w-full"
@@ -142,6 +183,14 @@ export function Header() {
               </button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Download Notification Toast */}
+      {downloadNotification && (
+        <div className="fixed bottom-24 left-4 right-4 animate-fade-up bg-primary text-primary-foreground rounded-lg px-4 py-3 shadow-lg flex items-center gap-2 z-50">
+          <Download className="h-4 w-4 animate-pulse" />
+          <span className="text-sm font-medium">Download in progress... Please wait</span>
         </div>
       )}
     </header>
