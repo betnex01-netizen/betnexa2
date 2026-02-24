@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
-import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -787,7 +786,6 @@ export default function Finance() {
         </div>
       </div>
 
-      <Footer />
       <BottomNav />
 
       {/* Withdrawal Activation Modal */}

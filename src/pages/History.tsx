@@ -1,6 +1,5 @@
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
-import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -219,7 +218,6 @@ export default function History() {
         </Tabs>
       </div>
 
-      <Footer />
       <BottomNav />
     </div>
   );

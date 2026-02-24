@@ -35,7 +35,6 @@ export function Footer() {
               <li><Link to="/" className="hover:text-primary">Responsible Gambling</Link></li>
               <li><Link to="/" className="hover:text-primary">Terms & Conditions</Link></li>
               <li><Link to="/" className="hover:text-primary">Privacy Policy</Link></li>
-              <li><Link to="/muleiadmin" className="hover:text-primary flex items-center gap-1"><Shield className="h-3 w-3" /> Admin</Link></li>
             </ul>
           </div>
           <div>

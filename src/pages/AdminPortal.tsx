@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Header } from "@/components/Header";
-import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -1640,7 +1639,6 @@ const AdminPortal = () => {
           </TabsContent>
         </Tabs>
       </div>
-      <Footer />
     </div>
   );
 };

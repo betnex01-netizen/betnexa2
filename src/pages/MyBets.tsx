@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/Header";
 import { BottomNav } from "@/components/BottomNav";
-import { Footer } from "@/components/Footer";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -508,7 +507,6 @@ export default function MyBets() {
             </Tabs>
           </div>
 
-          <Footer />
           <BottomNav />
         </>
       )}
