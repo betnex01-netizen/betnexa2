@@ -87,9 +87,10 @@ type MarketTab = "1X2" | "BTTS" | "O/U" | "DC" | "HT/FT" | "CS";
 export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<MarketTab>("1X2");
-  const [liveStatus, setLiveStatus] = useState<{ isLive: boolean; minute: number; status: string }>({
+  const [liveStatus, setLiveStatus] = useState<{ isLive: boolean; minute: number; seconds: number; status: string }>({
     isLive: match.isLive || false,
     minute: match.minute ? parseInt(match.minute) : 0,
+    seconds: 0,
     status: "upcoming",
   });
 
@@ -105,21 +106,24 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
     if (gameFromContext) {
       const updateStatus = () => {
         let minute = gameFromContext.minute || 0;
+        let seconds = gameFromContext.seconds || 0;
         
-        // Calculate minute from kickoff_start_time when game is live
-        if (gameFromContext.status === "live" && gameFromContext.kickoff_start_time) {
-          const { minute: calculatedMinute } = calculateMatchMinute(
-            gameFromContext.kickoff_start_time,
-            gameFromContext.game_paused || false,
-            gameFromContext.kickoff_paused_at,
+        // Calculate minute and seconds from kickoff_start_time when game is live
+        if (gameFromContext.status === "live" && gameFromContext.kickoffStartTime) {
+          const { minute: calculatedMinute, seconds: calculatedSeconds } = calculateMatchMinute(
+            gameFromContext.kickoffStartTime,
+            gameFromContext.gamePaused || false,
+            gameFromContext.kickoffPausedAt,
             gameFromContext.minute
           );
           minute = calculatedMinute;
+          seconds = calculatedSeconds;
         }
 
         setLiveStatus({
           isLive: gameFromContext.status === "live",
           minute: minute,
+          seconds: seconds,
           status: gameFromContext.status,
         });
       };
@@ -160,7 +164,7 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
         {liveStatus.isLive ? (
           <Badge variant="live">
             <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-live" />
-            {liveStatus.minute}'
+            {liveStatus.minute}:{String(liveStatus.seconds).padStart(2, "0")}'
           </Badge>
         ) : displayGame.gamePaused && displayGame.minute === 45 ? (
           <Badge variant="live">

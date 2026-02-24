@@ -24,21 +24,21 @@ export default function MyBets() {
   const { bets } = useBets();
   const { games } = useOdds();
   const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
-  const [liveMinutes, setLiveMinutes] = useState<Record<string, number>>({});
+  const [liveMinutes, setLiveMinutes] = useState<Record<string, { minute: number; seconds: number }>>({});
 
-  // Update real-time minutes for live games
+  // Update real-time minutes and seconds for live games
   useEffect(() => {
     const interval = setInterval(() => {
-      const newMinutes: Record<string, number> = {};
+      const newMinutes: Record<string, { minute: number; seconds: number }> = {};
       games.forEach((game) => {
-        if (game.isKickoffStarted && game.kickoffStartTime !== undefined) {
-          const { minute } = calculateMatchMinute(
+        if (game.isKickoffStarted && game.kickoffStartTime) {
+          const { minute, seconds } = calculateMatchMinute(
             game.kickoffStartTime,
             game.gamePaused || false,
             game.kickoffPausedAt,
             game.minute
           );
-          newMinutes[game.id] = minute;
+          newMinutes[game.id] = { minute, seconds };
         }
       });
       if (Object.keys(newMinutes).length > 0) {
@@ -404,7 +404,7 @@ export default function MyBets() {
                           )}
                           {getMatchStatus(selection.matchId, selection).status === "live" && (
                             <Badge variant="live" className="text-[10px]">
-                              LIVE {liveMinutes[selection.matchId] ?? games.find((g) => g.id === selection.matchId)?.minute ?? 0}'
+                              LIVE {liveMinutes[selection.matchId]?.minute ?? games.find((g) => g.id === selection.matchId)?.minute ?? 0}:{String(liveMinutes[selection.matchId]?.seconds ?? 0).padStart(2, "0")}'
                             </Badge>
                           )}
                           {getMatchStatus(selection.matchId, selection).status === "pending" && (

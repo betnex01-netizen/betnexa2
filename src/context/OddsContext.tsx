@@ -14,10 +14,12 @@ export interface GameOdds {
   homeScore?: number;
   awayScore?: number;
   minute?: number;
-  kickoffStartTime?: number; // Timestamp when kickoff started
+  seconds?: number; // Seconds component for display
+  kickoffStartTime?: number | string; // Timestamp when kickoff started (ISO string or milliseconds)
   isKickoffStarted?: boolean;
   gamePaused?: boolean;
-  kickoffPausedAt?: number; // Timestamp when paused
+  kickoffPausedAt?: number | string; // Timestamp when paused (ISO string or milliseconds)
+  isHalftime?: boolean;
 }
 
 interface OddsContextType {

@@ -64,21 +64,21 @@ const AdminPortal = () => {
     const interval = setInterval(() => {
       games.forEach((game) => {
         if (game.isKickoffStarted && game.kickoffStartTime) {
-          // Calculate current minute based on elapsed time
-          const { minute } = calculateMatchMinute(
+          // Calculate current minute and seconds based on elapsed time
+          const { minute, seconds } = calculateMatchMinute(
             game.kickoffStartTime,
             game.gamePaused || false,
             game.kickoffPausedAt,
             game.minute
           );
 
-          // Update game in context - ONLY update minute, don't auto-pause at 45
+          // Update game in context - ONLY update minute/seconds, don't auto-pause at 45
           if (minute > 95) {
             // Game ends at 95 minutes
-            updateGame(game.id, { minute: 95, status: "finished", isKickoffStarted: false });
-          } else if (minute !== game.minute) {
-            // Update minute if it changed
-            updateGame(game.id, { minute });
+            updateGame(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
+          } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
+            // Update minute/seconds if they changed
+            updateGame(game.id, { minute, seconds });
           }
         }
       });
@@ -353,6 +353,7 @@ const AdminPortal = () => {
         updateGame(gameId, {
           status: "live",
           minute: 0,
+          seconds: 0,
           homeScore: 0,
           awayScore: 0,
           isKickoffStarted: true,
@@ -887,7 +888,7 @@ const AdminPortal = () => {
                             <div className="grid grid-cols-2 gap-2">
                               <div className="text-center">
                                 <p className="text-xs text-muted-foreground">Minute</p>
-                                <p className="text-lg font-bold text-primary">{game.minute ?? 0}'</p>
+                                <p className="text-lg font-bold text-primary">{game.minute ?? 0}:{String(game.seconds ?? 0).padStart(2, "0")}'</p>
                                 {game.gamePaused && game.minute === 45 && (
                                   <p className="text-xs text-gold font-semibold">HALFTIME</p>
                                 )}
