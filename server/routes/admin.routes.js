@@ -70,6 +70,61 @@ async function checkAdmin(req, res, next) {
   }
 }
 
+// Helper function to determine market type from market key
+function determineMarketType(key) {
+  if (key.startsWith('cs')) return 'CS';
+  if (key.includes('btts')) return 'BTTS';
+  if (key.includes('over') || key.includes('under')) return 'O/U';
+  if (key.includes('doubleChance')) return 'DC';
+  if (key.includes('htft')) return 'HT/FT';
+  return '1X2';
+}
+
+// Helper function to generate default markets for a new game
+function generateDefaultMarkets(gameUUID, homeOdds, drawOdds, awayOdds) {
+  const h = homeOdds;
+  const d = drawOdds;
+  const a = awayOdds;
+
+  const markets = [];
+
+  // BTTS markets
+  markets.push({ game_id: gameUUID, market_type: 'BTTS', market_key: 'bttsYes', odds: +(1.6 + Math.random() * 0.5).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'BTTS', market_key: 'bttsNo', odds: +(2.0 + Math.random() * 0.5).toFixed(2) });
+
+  // Over/Under
+  markets.push({ game_id: gameUUID, market_type: 'O/U', market_key: 'over25', odds: +(1.7 + Math.random() * 0.6).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'O/U', market_key: 'under25', odds: +(1.9 + Math.random() * 0.5).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'O/U', market_key: 'over15', odds: +(1.2 + Math.random() * 0.3).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'O/U', market_key: 'under15', odds: +(3.5 + Math.random() * 1.0).toFixed(2) });
+
+  // Double Chance
+  markets.push({ game_id: gameUUID, market_type: 'DC', market_key: 'doubleChanceHomeOrDraw', odds: +(1 / (1/h + 1/d) * 0.9).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'DC', market_key: 'doubleChanceAwayOrDraw', odds: +(1 / (1/a + 1/d) * 0.9).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'DC', market_key: 'doubleChanceHomeOrAway', odds: +(1 / (1/h + 1/a) * 0.9).toFixed(2) });
+
+  // Half Time / Full Time
+  markets.push({ game_id: gameUUID, market_type: 'HT/FT', market_key: 'htftHomeHome', odds: +(h * 1.8).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'HT/FT', market_key: 'htftDrawDraw', odds: +(d * 2.0).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'HT/FT', market_key: 'htftAwayAway', odds: +(a * 1.8).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'HT/FT', market_key: 'htftDrawHome', odds: +(d * h * 0.7).toFixed(2) });
+  markets.push({ game_id: gameUUID, market_type: 'HT/FT', market_key: 'htftDrawAway', odds: +(d * a * 0.7).toFixed(2) });
+
+  // Correct Scores
+  for (let hScore = 0; hScore <= 4; hScore++) {
+    for (let aScore = 0; aScore <= 4; aScore++) {
+      markets.push({
+        game_id: gameUUID,
+        market_type: 'CS',
+        market_key: `cs${hScore}${aScore}`,
+        odds: +(3.0 + Math.random() * 20).toFixed(2)
+      });
+    }
+  }
+
+  return markets;
+}
+
 // GET: Fetch all games
 router.get('/games', async (req, res) => {
   try {
@@ -270,6 +325,47 @@ router.post('/games', checkAdmin, async (req, res) => {
       away_team: game.away_team,
     });
 
+    // Now insert markets if provided or generate default ones
+    try {
+      console.log('📊 Handling markets for new game');
+      let marketsToInsert: any[] = [];
+
+      if (markets && typeof markets === 'object' && Object.keys(markets).length > 0) {
+        // Use provided markets
+        marketsToInsert = Object.entries(markets).map(([key, odds]) => ({
+          game_id: game.id,
+          market_type: determineMarketType(key),
+          market_key: key,
+          odds: parseFloat(odds as any) || 0
+        }));
+      } else {
+        // Generate default markets based on 1X2 odds
+        const defaultMarkets = generateDefaultMarkets(
+          game.id,
+          parseFloat(homeOdds) || 2.0,
+          parseFloat(drawOdds) || 3.0,
+          parseFloat(awayOdds) || 3.0
+        );
+        marketsToInsert = defaultMarkets;
+      }
+
+      if (marketsToInsert.length > 0) {
+        const { error: marketError } = await supabase
+          .from('markets')
+          .insert(marketsToInsert);
+
+        if (marketError) {
+          console.warn('⚠️ Failed to insert markets:', marketError.message);
+          // Don't fail the game creation, continue anyway
+        } else {
+          console.log(`✅ Inserted ${marketsToInsert.length} markets for game`);
+        }
+      }
+    } catch (marketError) {
+      console.warn('⚠️ Error creating markets:', marketError.message);
+      // Don't fail the game creation if markets fail
+    }
+
     // Try to log admin action, but don't fail if it doesn't work
     try {
       console.log('📝 Logging admin action');
@@ -293,6 +389,7 @@ router.post('/games', checkAdmin, async (req, res) => {
     }
 
     console.log('📤 Sending success response');
+
     // Send minimal response to avoid circular references
     res.status(200).json({ 
       success: true, 
@@ -469,29 +566,62 @@ router.put('/games/:gameId/markets', checkAdmin, async (req, res) => {
     const { gameId } = req.params;
     const { markets } = req.body;
 
-    const { data: game, error } = await supabase
+    if (!markets || typeof markets !== 'object') {
+      return res.status(400).json({ error: 'Invalid markets data' });
+    }
+
+    console.log(`📝 Updating markets for game: ${gameId}`, Object.keys(markets));
+
+    // First, get the game by game_id to find its UUID
+    const { data: game, error: gameError } = await supabase
       .from('games')
-      .update({ markets, updated_at: new Date().toISOString() })
+      .select('id, game_id')
       .eq('game_id', gameId)
-      .select()
       .single();
 
-    if (error) throw error;
-
-    // Log admin action (optional)
-    try {
-      if (req.user.id && req.user.id !== 'unknown') {
-        // Note: gameId is text, not UUID, so we skip logging to avoid type errors
-        console.log('ℹ️ Markets updated but audit logging skipped (game_id is not UUID)');
-      }
-    } catch (logError) {
-      console.warn('⚠️ Failed to log admin action:', logError.message);
+    if (gameError || !game) {
+      console.error('❌ Game not found:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
     }
+
+    const gameUUID = game.id;
+
+    // Delete existing markets for this game
+    const { error: deleteError } = await supabase
+      .from('markets')
+      .delete()
+      .eq('game_id', gameUUID);
+
+    if (deleteError) {
+      console.warn('⚠️ Error deleting existing markets:', deleteError.message);
+      // Continue anyway, we'll insert/update new ones
+    }
+
+    // Insert new market entries
+    const marketEntries = Object.entries(markets).map(([marketKey, odds]) => ({
+      game_id: gameUUID,
+      market_type: determineMarketType(marketKey),
+      market_key: marketKey,
+      odds: parseFloat(odds) || 0
+    }));
+
+    if (marketEntries.length > 0) {
+      const { error: insertError } = await supabase
+        .from('markets')
+        .insert(marketEntries);
+
+      if (insertError) {
+        console.error('❌ Error inserting markets:', insertError.message);
+        return res.status(500).json({ error: 'Failed to insert markets', details: insertError.message });
+      }
+    }
+
+    console.log(`✅ Markets updated successfully for game ${gameId}`);
 
     res.json({ success: true, game });
   } catch (error) {
-    console.error('Update markets error:', error);
-    res.status(500).json({ error: 'Failed to update markets' });
+    console.error('❌ Update markets error:', error);
+    res.status(500).json({ error: 'Failed to update markets', details: error.message });
   }
 });
 
