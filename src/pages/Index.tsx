@@ -33,21 +33,8 @@ const Index = () => {
   // Enable auto bet calculation
   useBetAutoCalculation();
 
-  // Hardcode Northern Storm game
-  const northernStormGame = {
-    id: 'northern-storm-rampage-fc',
-    league: 'Football',
-    homeTeam: 'Northern Storm',
-    awayTeam: 'Rampage Fc',
-    homeOdds: 2.80,
-    drawOdds: 3.58,
-    awayOdds: 3.63,
-    time: '2026-02-23T23:00:00Z',
-    markets: generateMarketOdds(2.80, 3.58, 3.63),
-  };
-
-  // Combine hardcoded game with API games, but filter out finished games
-  const games = [northernStormGame, ...apiGames].filter(
+  // Filter out finished games
+  const games = apiGames.filter(
     (game) => game.status !== "finished"
   );
 
