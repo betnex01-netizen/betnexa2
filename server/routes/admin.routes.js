@@ -106,36 +106,52 @@ router.get('/games', async (req, res) => {
     let gamesWithMarkets = games || [];
     if (gamesWithMarkets.length > 0) {
       try {
-        const gameIds = gamesWithMarkets.map(g => g.id || g.game_id);
-        const { data: markets, error: marketsError } = await supabase
-          .from('markets')
-          .select('*')
-          .in('game_id', gameIds);
+        // Use only the UUID id field for marketing queries
+        const gameIds = gamesWithMarkets.map(g => g.id).filter(Boolean);
+        
+        if (gameIds.length > 0) {
+          const { data: markets, error: marketsError } = await supabase
+            .from('markets')
+            .select('*')
+            .in('game_id', gameIds);
 
-        if (!marketsError && markets) {
-          console.log(`✅ Retrieved ${markets.length} market entries`);
-          
-          // Group markets by game_id
-          const marketsByGame = {};
-          markets.forEach((market) => {
-            const gameId = market.game_id;
-            if (!marketsByGame[gameId]) {
-              marketsByGame[gameId] = {};
-            }
-            // Store market with its key (e.g., 'correct_score:3:1')
-            if (market.market_key) {
-              marketsByGame[gameId][market.market_key] = parseFloat(market.odds);
-            }
-          });
+          if (!marketsError && markets && markets.length > 0) {
+            console.log(`✅ Retrieved ${markets.length} market entries`);
+            
+            // Group markets by game_id (UUID)
+            const marketsByGame = {};
+            markets.forEach((market) => {
+              const gameId = market.game_id;
+              if (!marketsByGame[gameId]) {
+                marketsByGame[gameId] = {};
+              }
+              // Store market with its key (e.g., 'correct_score:3:1')
+              if (market.market_key && market.odds !== null && market.odds !== undefined) {
+                marketsByGame[gameId][market.market_key] = parseFloat(market.odds);
+              }
+            });
 
-          // Attach markets to each game
-          gamesWithMarkets = gamesWithMarkets.map((game) => ({
-            ...game,
-            markets: marketsByGame[game.id || game.game_id] || {}
-          }));
-        } else if (marketsError) {
-          console.warn('⚠️ Failed to fetch markets:', marketsError.message);
-          // Continue without markets data
+            // Attach markets to each game using the UUID id field
+            gamesWithMarkets = gamesWithMarkets.map((game) => ({
+              ...game,
+              markets: marketsByGame[game.id] || {}
+            }));
+          } else if (marketsError) {
+            console.warn('⚠️ Failed to fetch markets:', marketsError.message);
+            // Continue without markets data
+            gamesWithMarkets = gamesWithMarkets.map((game) => ({
+              ...game,
+              markets: {}
+            }));
+          } else {
+            // No markets found, add empty markets object
+            gamesWithMarkets = gamesWithMarkets.map((game) => ({
+              ...game,
+              markets: {}
+            }));
+          }
+        } else {
+          // No valid game IDs, add empty markets object
           gamesWithMarkets = gamesWithMarkets.map((game) => ({
             ...game,
             markets: {}
