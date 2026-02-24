@@ -328,7 +328,7 @@ router.post('/games', checkAdmin, async (req, res) => {
     // Now insert markets if provided or generate default ones
     try {
       console.log('📊 Handling markets for new game');
-      let marketsToInsert: any[] = [];
+      let marketsToInsert = [];
 
       if (markets && typeof markets === 'object' && Object.keys(markets).length > 0) {
         // Use provided markets
@@ -336,7 +336,7 @@ router.post('/games', checkAdmin, async (req, res) => {
           game_id: game.id,
           market_type: determineMarketType(key),
           market_key: key,
-          odds: parseFloat(odds as any) || 0
+          odds: parseFloat(odds) || 0
         }));
       } else {
         // Generate default markets based on 1X2 odds
