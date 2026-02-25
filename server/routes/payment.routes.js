@@ -649,27 +649,35 @@ router.get('/user-balance/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
 
-    console.log('💰 Fetching user balance:', userId);
+    console.log('💰 Fetching user balance for:', userId);
 
     // Fetch from database
     try {
       const { data, error } = await supabase
         .from('users')
         .select('account_balance')
-        .eq('id', userId)
-        .single();
+        .eq('id', userId);
 
       if (error) {
-        console.warn('⚠️ User not found in database:', error.message);
+        console.warn('⚠️ Database error fetching balance:', error.message);
         return res.json({
           success: true,
           balance: null,
-          message: 'User balance not found. Using default balance.'
+          message: 'Database error. Using default balance.'
         });
       }
 
-      const accountBalance = parseFloat(data.account_balance) || 0;
-      console.log('✅ User balance fetched:', accountBalance);
+      if (!data || data.length === 0) {
+        console.warn('⚠️ User not found in database:', userId);
+        return res.json({
+          success: true,
+          balance: null,
+          message: 'User not found. Using default balance.'
+        });
+      }
+
+      const accountBalance = parseFloat(data[0].account_balance) || 0;
+      console.log('✅ User balance fetched successfully:', { userId, balance: accountBalance });
 
       res.json({
         success: true,

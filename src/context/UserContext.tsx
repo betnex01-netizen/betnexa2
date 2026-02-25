@@ -228,25 +228,42 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   // Refresh user data from backend (for admin updates to reflect in real-time)
   const refreshUserData = async () => {
-    if (!user) return;
+    if (!user || !user.phone) {
+      console.warn('⚠️ Cannot refresh: user or phone missing');
+      return;
+    }
     try {
-      console.log('🔄 Refreshing user data...');
+      console.log('🔄 Refreshing user data for:', user.phone);
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
-      const response = await fetch(`${apiUrl}/api/auth/profile/${encodeURIComponent(user.phone)}`, {
+      const profileUrl = `${apiUrl}/api/auth/profile/${encodeURIComponent(user.phone)}`;
+      console.log('   Fetching from:', profileUrl);
+
+      const response = await fetch(profileUrl, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
 
+      console.log('   Response status:', response.status);
+
       if (!response.ok) {
-        console.warn('⚠️ Failed to refresh user data');
+        console.warn(`⚠️ Failed to refresh user data (${response.status})`);
         return;
       }
 
       const data = await response.json();
+      console.log('   Response data:', data);
+
       if (data.success && data.user) {
-        console.log('✅ User data refreshed successfully');
-        // Silently update user data without interrupting UI
+        console.log('✅ User data refreshed:', {
+          oldBalance: user.accountBalance,
+          newBalance: data.user.accountBalance,
+          oldUsername: user.username,
+          newUsername: data.user.username,
+        });
+        // Update user data
         updateUser(data.user);
+      } else {
+        console.warn('⚠️ Refresh response not successful:', data);
       }
     } catch (error) {
       console.warn('⚠️ Error refreshing user data:', error);
@@ -254,25 +271,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Periodic refresh of user data every 30 seconds when logged in
+  // Periodic refresh of user data every 15 seconds when logged in
   useEffect(() => {
-    if (!isLoggedIn || !user) return;
+    if (!isLoggedIn || !user) {
+      console.log('⏱️ Refresh disabled: not logged in or user missing');
+      return;
+    }
 
-    console.log('⏱️ Starting periodic user data refresh (every 30 seconds)');
+    console.log('⏱️ Starting periodic user data refresh (every 15 seconds)');
     
     // Refresh immediately on login
-    refreshUserData();
+    refreshUserData().catch(err => console.warn('Initial refresh failed:', err));
 
-    // Then refresh every 30 seconds
+    // Then refresh every 15 seconds for faster updates
     const refreshInterval = setInterval(() => {
-      refreshUserData();
-    }, 30000);
+      console.log('⏱️ Periodic refresh triggered');
+      refreshUserData().catch(err => console.warn('Periodic refresh failed:', err));
+    }, 15000);
 
     return () => {
       clearInterval(refreshInterval);
       console.log('⏹️ Stopped periodic user data refresh');
     };
-  }, [isLoggedIn, user?.phone]);
+  }, [isLoggedIn]);
 
   return (
     <UserContext.Provider
