@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useMatches } from "@/context/MatchContext";
 import { useOdds } from "@/context/OddsContext";
 import { calculateMatchMinute } from "@/lib/gameTimeCalculator";
+import { formatKickoffTimeEAT } from "@/lib/timeFormatter";
 
 export interface MatchMarkets {
   bttsYes: number;
@@ -163,7 +164,7 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
             FT
           </Badge>
         ) : (
-          <span className="text-xs text-muted-foreground">{match.time}</span>
+          <span className="text-xs text-muted-foreground">{formatKickoffTimeEAT(displayGame.time)}</span>
         )}
       </div>
 
