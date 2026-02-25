@@ -64,27 +64,39 @@ const AdminPortal = () => {
     const interval = setInterval(() => {
       games.forEach((game) => {
         if (game.isKickoffStarted && game.kickoffStartTime) {
-          // Calculate elapsed seconds since kickoff started
-          const kickoffMs = new Date(game.kickoffStartTime).getTime();
-          const now = Date.now();
-          const elapsedMs = now - kickoffMs;
-          const totalSeconds = Math.floor(elapsedMs / 1000);
-          const minute = Math.floor(totalSeconds / 60);
-          const seconds = totalSeconds % 60;
+          try {
+            // Calculate elapsed seconds since kickoff started
+            const kickoffMs = new Date(game.kickoffStartTime).getTime();
+            
+            if (isNaN(kickoffMs)) {
+              console.error('❌ Invalid kickoff time:', game.kickoffStartTime);
+              return;
+            }
 
-          // Stop at 95 minutes
-          if (minute >= 95) {
-            updateGame(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
-          } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
-            // Update every second
-            updateGame(game.id, { minute, seconds });
+            const now = Date.now();
+            const elapsedMs = now - kickoffMs;
+            const totalSeconds = Math.floor(elapsedMs / 1000);
+            const minute = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+
+            console.log(`⏱️ Game ${game.id.substring(0, 8)}: ${minute}:${String(seconds).padStart(2, "0")} (elapsed: ${elapsedMs}ms, kickoff: ${game.kickoffStartTime})`);
+
+            // Stop at 95 minutes
+            if (minute >= 95) {
+              updateGame(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
+            } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
+              // Update only if changed
+              updateGame(game.id, { minute, seconds });
+            }
+          } catch (error) {
+            console.error('Error in timer calculation:', error);
           }
         }
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [games.length]);
+  }, [games, updateGame]);
 
   // Fetch users from backend when component mounts
   useEffect(() => {
@@ -1412,7 +1424,7 @@ const AdminPortal = () => {
                                       <div className="mt-1 text-[10px] text-muted-foreground">
                                         <span className="mr-2">Score: {matchGame.homeScore || 0}-{matchGame.awayScore || 0}</span>
                                         <span className="px-1.5 py-0.5 rounded bg-secondary text-xs capitalize">
-                                          {matchGame.status === "live" && matchGame.isKickoffStarted ? `LIVE ${matchGame.minute}'` : matchGame.status}
+                                          {matchGame.status === "live" && matchGame.isKickoffStarted ? `LIVE ${matchGame.minute}:${String(matchGame.seconds ?? 0).padStart(2, "0")}'` : matchGame.status}
                                         </span>
                                       </div>
                                     )}
