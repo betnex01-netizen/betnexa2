@@ -78,7 +78,7 @@ export default function Finance() {
 
     try {
       // Send STK push for activation fee
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/payments/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -127,7 +127,7 @@ export default function Finance() {
         pollCount++;
 
         try {
-          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
           const statusResponse = await fetch(
             `${apiUrl}/api/payments/status?requestId=${externalRef}`
           );
@@ -265,7 +265,7 @@ export default function Finance() {
         setStatusMessage("🔄 Connecting to PayHero...");
         console.log('📡 Sending payment request:', { amount: transactionAmount, phoneNumber: mpesaNumber, userId: user?.id || "user1" });
         
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
         const response = await fetch(`${apiUrl}/api/payments/initiate`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -327,7 +327,7 @@ export default function Finance() {
           pollCount++;
           
           try {
-            const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+            const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
             const statusResponse = await fetch(
               `${apiUrl}/api/payments/status/${ref}`
             );
@@ -888,3 +888,4 @@ export default function Finance() {
     </div>
   );
 }
+

@@ -80,7 +80,7 @@ const AdminPortal = () => {
       for (const game of liveBets) {
         try {
           // Fetch server time to ensure all clients see the same timer
-          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
           const response = await fetch(`${apiUrl}/api/admin/games/${game.id}/time`);
           
           if (!response.ok) continue;
@@ -126,7 +126,7 @@ const AdminPortal = () => {
     setActivatingUserId(userId);
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/users/${userId}/activate-withdrawal`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -167,7 +167,7 @@ const AdminPortal = () => {
       }
 
       // Call backend to delete user
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/payments/admin/users/${userId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' }
@@ -201,7 +201,7 @@ const AdminPortal = () => {
     const markets = generateMarketOdds(h, d, a);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,7 +262,7 @@ const AdminPortal = () => {
       // Preserve correct score odds from database, only regenerate other odds
       const newMarkets = generateMarketOdds(game.homeOdds, game.drawOdds, game.awayOdds, game.markets);
       
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${id}/markets`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -295,7 +295,7 @@ const AdminPortal = () => {
     if (!editMarkets) return;
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${id}/markets`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -325,7 +325,7 @@ const AdminPortal = () => {
     if (!confirm('Are you sure you want to delete this game?')) return;
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
@@ -354,7 +354,7 @@ const AdminPortal = () => {
     try {
       const now = new Date().toISOString();
       
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -405,7 +405,7 @@ const AdminPortal = () => {
 
     try {
       const now = new Date().toISOString();
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -453,7 +453,7 @@ const AdminPortal = () => {
       const newKickoffStartTimeMs = kickoffStartMs + pauseDuration;
       const newKickoffStartTime = new Date(newKickoffStartTimeMs).toISOString();
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -531,7 +531,7 @@ const AdminPortal = () => {
       // Pass existing markets to preserve correct score odds from database
       const newMarkets = generateMarketOdds(newOdds.homeOdds, newOdds.drawOdds, newOdds.awayOdds, game.markets);
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/score`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -570,7 +570,7 @@ const AdminPortal = () => {
     if (!game) return;
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/end`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -601,7 +601,7 @@ const AdminPortal = () => {
     if (!game) return;
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       console.log(`⏱️  Marking halftime for game: ${gameId}`);
       
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/halftime`, {
@@ -630,7 +630,7 @@ const AdminPortal = () => {
 
   const markGameLive = async (gameId: string) => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       console.log(`🔴 Marking game as live: ${gameId}`);
       
       const response = await fetch(`${apiUrl}/api/admin/games/${gameId}`, {
@@ -687,7 +687,7 @@ const AdminPortal = () => {
   const fetchFailedPayments = async () => {
     setLoadingPayments(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/payments/admin/failed`);
       const data = await response.json();
       if (data.success) {
@@ -704,7 +704,7 @@ const AdminPortal = () => {
   const fetchAllTransactions = async () => {
     setLoadingPayments(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/transactions`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
@@ -724,7 +724,7 @@ const AdminPortal = () => {
   const fetchAllPayments = async () => {
     setLoadingPayments(true);
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/payments`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
@@ -746,7 +746,7 @@ const AdminPortal = () => {
       setResolvingPayment(externalReference);
       const data = resolutionData[externalReference] || {};
 
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
       const response = await fetch(
         `${apiUrl}/api/payments/admin/resolve/${externalReference}`,
         {
@@ -1176,7 +1176,7 @@ const AdminPortal = () => {
                                 try {
                                   // If balance is being edited, call the backend API
                                   if (editingUserData.accountBalance !== undefined && editingUserData.accountBalance !== user.accountBalance) {
-                                    const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+                                    const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
                                     const response = await fetch(`${apiUrl}/api/admin/users/${user.id}/balance`, {
                                       method: 'PUT',
                                       headers: { 'Content-Type': 'application/json' },
@@ -1686,3 +1686,4 @@ const AdminPortal = () => {
 };
 
 export default AdminPortal;
+

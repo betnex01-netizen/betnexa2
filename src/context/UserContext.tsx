@@ -169,7 +169,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Login with backend API
   const loginWithSupabase = async (phone: string, password: string): Promise<UserProfile | null> => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app'}/api/auth/login`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app'}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -196,7 +196,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Signup with backend API
   const signupWithSupabase = async (userData: any): Promise<UserProfile | null> => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app'}/api/auth/signup`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app'}/api/auth/signup`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -250,3 +250,4 @@ export function useUser() {
   }
   return context;
 }
+
