@@ -70,13 +70,24 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const savedSession = localStorage.getItem('betnexa_session');
         
         console.log('🔐 Checking for existing session in localStorage...');
+        console.log('   Saved user:', !!savedUser);
+        console.log('   Saved session:', !!savedSession);
         
         if (savedUser && savedSession) {
           try {
             const userData = JSON.parse(savedUser);
             const sessionData = JSON.parse(savedSession);
             
-            console.log('✅ Found saved user and session:', userData.username);
+            console.log('✅ Found saved user:', { username: userData.username, phone: userData.phone, email: userData.email });
+            
+            // Validate required fields for refresh to work
+            if (!userData.phone) {
+              console.warn('⚠️ Saved user missing phone field, clearing session');
+              localStorage.removeItem('betnexa_user');
+              localStorage.removeItem('betnexa_session');
+              setIsAuthReady(true);
+              return;
+            }
             
             // Restore session immediately from localStorage (faster than database check)
             setUser(userData);
@@ -84,7 +95,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             setIsLoggedIn(true);
             setIsAuthReady(true);
             
-            console.log('✅ Session restored from local storage');
+            console.log('✅ Session restored from local storage, phone available:', userData.phone);
             
             // Verify session is still valid in background
             const currentSession = sessionService.getCurrentSession();
@@ -229,71 +240,101 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Refresh user data from backend (for admin updates to reflect in real-time)
   const refreshUserData = async () => {
     if (!user || !user.phone) {
-      console.warn('⚠️ Cannot refresh: user or phone missing');
-      return;
+      console.warn('⚠️ Cannot refresh: user or phone missing', { user: !!user, phone: user?.phone });
+      return false;
     }
     try {
-      console.log('🔄 Refreshing user data for:', user.phone);
+      console.log('🔄 Starting refresh for phone:', user.phone);
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const profileUrl = `${apiUrl}/api/auth/profile/${encodeURIComponent(user.phone)}`;
-      console.log('   Fetching from:', profileUrl);
+      console.log('   URL:', profileUrl);
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
 
       const response = await fetch(profileUrl, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
       console.log('   Response status:', response.status);
 
       if (!response.ok) {
-        console.warn(`⚠️ Failed to refresh user data (${response.status})`);
-        return;
+        console.warn(`⚠️ Refresh failed (HTTP ${response.status})`, response.statusText);
+        return false;
       }
 
       const data = await response.json();
       console.log('   Response data:', data);
 
-      if (data.success && data.user) {
-        console.log('✅ User data refreshed:', {
-          oldBalance: user.accountBalance,
-          newBalance: data.user.accountBalance,
-          oldUsername: user.username,
-          newUsername: data.user.username,
-        });
-        // Update user data
-        updateUser(data.user);
-      } else {
-        console.warn('⚠️ Refresh response not successful:', data);
+      if (!data.success || !data.user) {
+        console.warn('⚠️ Refresh response invalid:', data);
+        return false;
       }
+
+      // Compare old and new data
+      const changes = {
+        balance: user.accountBalance !== data.user.accountBalance,
+        username: user.username !== data.user.username,
+        email: user.email !== data.user.email,
+        phone: user.phone !== data.user.phone,
+      };
+
+      console.log('✅ User data fetched successfully, changes:', changes);
+      
+      // Update user data - this will also update localStorage
+      updateUser(data.user);
+      return true;
     } catch (error) {
-      console.warn('⚠️ Error refreshing user data:', error);
-      // Don't throw - let it fail silently so it doesn't interrupt user experience
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          console.warn('⚠️ Refresh request timed out');
+        } else {
+          console.warn('⚠️ Error refreshing user data:', error.message);
+        }
+      } else {
+        console.warn('⚠️ Unknown error refreshing user data:', error);
+      }
+      return false;
     }
   };
 
   // Periodic refresh of user data every 15 seconds when logged in
   useEffect(() => {
-    if (!isLoggedIn || !user) {
-      console.log('⏱️ Refresh disabled: not logged in or user missing');
+    if (!isLoggedIn || !user || !user.phone) {
+      console.log('⏱️ Refresh disabled:', { isLoggedIn, hasUser: !!user, hasPhone: !!user?.phone });
       return;
     }
 
-    console.log('⏱️ Starting periodic user data refresh (every 15 seconds)');
+    console.log('⏱️ Setting up periodic user data refresh (every 15 seconds)');
     
-    // Refresh immediately on login
-    refreshUserData().catch(err => console.warn('Initial refresh failed:', err));
+    // Create a wrapper to ensure refreshUserData has access to current user
+    const doRefresh = async () => {
+      console.log('⏱️ Triggering refresh check...');
+      try {
+        await refreshUserData();
+      } catch (err) {
+        console.warn('⚠️ Refresh error caught:', err);
+      }
+    };
 
-    // Then refresh every 15 seconds for faster updates
+    // Refresh immediately on setup
+    console.log('⏱️ Running initial refresh...');
+    doRefresh();
+
+    // Then refresh every 15 seconds
     const refreshInterval = setInterval(() => {
-      console.log('⏱️ Periodic refresh triggered');
-      refreshUserData().catch(err => console.warn('Periodic refresh failed:', err));
+      console.log('⏱️ Scheduled refresh triggered');
+      doRefresh();
     }, 15000);
 
     return () => {
       clearInterval(refreshInterval);
       console.log('⏹️ Stopped periodic user data refresh');
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, user?.phone]);
 
   return (
     <UserContext.Provider
