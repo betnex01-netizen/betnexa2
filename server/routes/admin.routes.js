@@ -246,11 +246,18 @@ router.get('/games/:gameId/time', async (req, res) => {
     const { gameId } = req.params;
     console.log(`\n⏱️  [GET /api/admin/games/${gameId}/time] Getting server time for game...`);
 
-    const { data: game, error } = await supabase
-      .from('games')
-      .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
-      .eq('game_id', gameId)
-      .single();
+    // Check if gameId is UUID or text game_id
+    let gameQuery = supabase.from('games').select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId is UUID, searching by id`);
+      gameQuery = gameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId is text, searching by game_id`);
+      gameQuery = gameQuery.eq('game_id', gameId);
+    }
+
+    const { data: game, error } = await gameQuery.maybeSingle();
 
     if (error || !game) {
       console.error('❌ Game not found:', error?.message || 'Game not found');
