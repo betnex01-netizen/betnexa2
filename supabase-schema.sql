@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS games (
   kickoff_start_time TIMESTAMP NULL,
   game_paused BOOLEAN DEFAULT FALSE,
   kickoff_paused_at TIMESTAMP NULL,
+  is_halftime BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   finished_at TIMESTAMP NULL

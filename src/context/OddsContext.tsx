@@ -86,6 +86,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               isKickoffStarted: g.is_kickoff_started || false,
               gamePaused: g.game_paused || false,
               kickoffPausedAt: g.kickoff_paused_at || undefined,
+              isHalftime: g.is_halftime || false,
             }));
             setGames(transformedGames);            gamesRef.current = transformedGames;            setLoadError(null);
           } else {
@@ -227,6 +228,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
             isKickoffStarted: g.is_kickoff_started || false,
             gamePaused: g.game_paused || false,
             kickoffPausedAt: g.kickoff_paused_at || undefined,
+            isHalftime: g.is_halftime || false,
           }));
           setGames(transformedGames);
           gamesRef.current = transformedGames;
