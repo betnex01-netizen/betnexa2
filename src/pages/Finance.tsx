@@ -237,9 +237,9 @@ export default function Finance() {
 
     const transactionAmount = parseInt(amount);
     
-    // Validate minimum deposit amount (500 KSH)
-    if (activeTab === "deposit" && transactionAmount < 500) {
-      alert("❌ Minimum deposit amount is KSH 500. Please enter a higher amount.");
+    // Validate minimum deposit amount (300 KSH)
+    if (activeTab === "deposit" && transactionAmount < 300) {
+      alert("❌ Minimum deposit amount is KSH 300. Please enter a higher amount.");
       return;
     }
     
@@ -575,11 +575,11 @@ export default function Finance() {
                     onChange={(e) => setAmount(e.target.value)}
                     className="mt-2"
                     disabled={isProcessing}
-                    min="500"
+                    min="300"
                     step="1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Minimum: KSH 500
+                    Minimum: KSH 300
                   </p>
                 </div>
 
@@ -808,15 +808,15 @@ export default function Finance() {
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li className="flex items-center gap-2">
                   <span className="text-warning">•</span>
-                  <span>STK Push will be sent for <strong className="text-foreground">KSH 500</strong></span>
+                  <span>STK Push will be sent for <strong className="text-foreground">KSH 300</strong></span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-warning">•</span>
-                  <span>Deposit KSH 500 via M-Pesa PIN</span>
+                  <span>Deposit KSH 300 via M-Pesa PIN</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-warning">•</span>
-                  <span><strong className="text-foreground">KSH 500 will be added</strong> to your account balance</span>
+                  <span><strong className="text-foreground">KSH 300 will be added</strong> to your account balance</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <span className="text-warning">•</span>
