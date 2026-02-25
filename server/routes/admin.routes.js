@@ -244,34 +244,31 @@ router.get('/games', async (req, res) => {
 router.get('/games/:gameId/time', async (req, res) => {
   try {
     const { gameId } = req.params;
-    console.log(`\n⏱️  [GET /api/admin/games/${gameId}/time] Getting server time for game...`);
 
     // Check if gameId is UUID or text game_id
     let gameQuery = supabase.from('games').select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds');
     
     if (isValidUUID(gameId)) {
-      console.log(`   GameId is UUID, searching by id`);
       gameQuery = gameQuery.eq('id', gameId);
     } else {
-      console.log(`   GameId is text, searching by game_id`);
       gameQuery = gameQuery.eq('game_id', gameId);
     }
 
     const { data: game, error } = await gameQuery.maybeSingle();
 
     if (error || !game) {
-      console.error('❌ Game not found:', error?.message || 'Game not found');
+      console.error(`❌ [TIME] Game not found for gameId: ${gameId}. Error: ${error?.message || 'Not found'}`);
       return res.status(404).json({ 
         success: false, 
-        error: 'Game not found' 
+        error: 'Game not found',
+        gameId
       });
     }
 
     // Get current server time
     const serverNow = Date.now();
-    const kickoffMs = game.kickoff_start_time 
-      ? new Date(game.kickoff_start_time).getTime() 
-      : null;
+    const kickoffTimeStr = game.kickoff_start_time;
+    const kickoffMs = kickoffTimeStr ? new Date(kickoffTimeStr).getTime() : null;
 
     let minute = game.minute || 0;
     let seconds = game.seconds || 0;
@@ -282,9 +279,11 @@ router.get('/games/:gameId/time', async (req, res) => {
       const totalSeconds = Math.floor(elapsedMs / 1000);
       minute = Math.floor(totalSeconds / 60);
       seconds = totalSeconds % 60;
+      
+      console.log(`⏱️  [TIME] ${gameId}: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")} (elapsed: ${totalSeconds}s, kickoff: ${new Date(kickoffMs).toISOString()})`);
+    } else if (game.is_kickoff_started) {
+      console.warn(`⚠️  [TIME] Game ${gameId} is kickoff started but kickoffMs is invalid. kickoffTimeStr=${kickoffTimeStr}, kickoffMs=${kickoffMs}`);
     }
-
-    console.log(`⏱️  Game time: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")} (server time: ${new Date(serverNow).toISOString()})`);
 
     res.json({ 
       success: true, 

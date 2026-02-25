@@ -77,32 +77,37 @@ const AdminPortal = () => {
     const interval = setInterval(async () => {
       const liveBets = gamesRef.current.filter(g => g.isKickoffStarted);
       
+      if (liveBets.length === 0) return; // No live games, skip
+      
       for (const game of liveBets) {
         try {
           // Fetch server time to ensure all clients see the same timer
           const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
           const response = await fetch(`${apiUrl}/api/admin/games/${game.id}/time`);
           
-          if (!response.ok) continue;
+          if (!response.ok) {
+            console.warn(`⚠️ [TIMER] Failed to fetch time for ${game.id}: ${response.status}`);
+            continue;
+          }
 
           const data = await response.json();
           
           if (data.success && data.minute !== undefined && data.seconds !== undefined) {
-            // Only log every 10 seconds to reduce noise
-            if (data.seconds === 0) {
-              console.log(`⏱️  Game ${game.id.substring(0, 8)}: ${String(data.minute).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")} (from server)`);
-            }
+            // Log every update for debugging
+            console.log(`⏱️  [TIMER] ${game.id}: ${String(data.minute).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")}`);
 
-            // Update game if time changed
-            if (data.minute !== game.minute || data.seconds !== (game.seconds || 0)) {
-              updateGameRef.current(game.id, { 
-                minute: data.minute, 
-                seconds: data.seconds 
-              });
-            }
+            // ALWAYS update the game state to ensure timer counts
+            updateGameRef.current(game.id, { 
+              minute: data.minute, 
+              seconds: data.seconds,
+              isKickoffStarted: data.isKickoffStarted,
+              kickoffStartTime: data.kickoffStartTime
+            });
+          } else {
+            console.warn(`⚠️ [TIMER] Invalid response data for ${game.id}:`, data);
           }
         } catch (error) {
-          console.error(`Error fetching game time for ${game.id}:`, error);
+          console.error(`❌ [TIMER] Error fetching game time for ${game.id}:`, error);
         }
       }
     }, 1000);
