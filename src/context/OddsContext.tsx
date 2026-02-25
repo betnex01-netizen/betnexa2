@@ -109,7 +109,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
 
     fetchGames();
 
-    // Auto-refresh games every 5 seconds when there are live games
+    // Auto-refresh games every 2 seconds when there are live games
     const autoRefreshInterval = setInterval(async () => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
@@ -145,7 +145,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
       } catch (error) {
         console.warn('⚠️ Auto-refresh failed:', error);
       }
-    }, 5000);
+    }, 2000);
 
     return () => {
       clearInterval(autoRefreshInterval);
