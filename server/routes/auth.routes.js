@@ -164,4 +164,65 @@ router.post('/signup', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/auth/profile/:phone
+ * Fetch user profile by phone number
+ * Used for refreshing user data after admin updates
+ */
+router.get('/profile/:phone', async (req, res) => {
+  try {
+    const { phone } = req.params;
+
+    if (!phone) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number is required'
+      });
+    }
+
+    // Query Supabase for user by phone
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('phone_number', phone)
+      .single();
+
+    if (error || !user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Return formatted user data
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        name: user.username,
+        email: user.email || '',
+        phone: user.phone_number,
+        password: user.password,
+        username: user.username,
+        verified: user.is_verified,
+        level: user.role === 'admin' ? 'Admin' : 'Member',
+        joinDate: new Date(user.created_at).toLocaleDateString(),
+        totalBets: user.total_bets || 0,
+        totalWinnings: user.total_winnings || 0,
+        accountBalance: parseFloat(user.account_balance) || 0,
+        withdrawalActivated: user.withdrawal_activated || false,
+        withdrawalActivationDate: user.withdrawal_activation_date,
+        isAdmin: user.is_admin || false,
+      }
+    });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to fetch profile',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;

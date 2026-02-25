@@ -29,6 +29,7 @@ interface UserContextType {
   logout: () => Promise<void>;
   loginWithSupabase: (phone: string, password: string) => Promise<UserProfile | null>;
   signupWithSupabase: (userData: any) => Promise<UserProfile | null>;
+  refreshUserData: () => Promise<void>;  // Refresh user data from backend
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -225,6 +226,54 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Refresh user data from backend (for admin updates to reflect in real-time)
+  const refreshUserData = async () => {
+    if (!user) return;
+    try {
+      console.log('🔄 Refreshing user data...');
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/auth/profile/${encodeURIComponent(user.phone)}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        console.warn('⚠️ Failed to refresh user data');
+        return;
+      }
+
+      const data = await response.json();
+      if (data.success && data.user) {
+        console.log('✅ User data refreshed successfully');
+        // Silently update user data without interrupting UI
+        updateUser(data.user);
+      }
+    } catch (error) {
+      console.warn('⚠️ Error refreshing user data:', error);
+      // Don't throw - let it fail silently so it doesn't interrupt user experience
+    }
+  };
+
+  // Periodic refresh of user data every 30 seconds when logged in
+  useEffect(() => {
+    if (!isLoggedIn || !user) return;
+
+    console.log('⏱️ Starting periodic user data refresh (every 30 seconds)');
+    
+    // Refresh immediately on login
+    refreshUserData();
+
+    // Then refresh every 30 seconds
+    const refreshInterval = setInterval(() => {
+      refreshUserData();
+    }, 30000);
+
+    return () => {
+      clearInterval(refreshInterval);
+      console.log('⏹️ Stopped periodic user data refresh');
+    };
+  }, [isLoggedIn, user?.phone]);
+
   return (
     <UserContext.Provider
       value={{
@@ -236,6 +285,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         logout,
         loginWithSupabase,
         signupWithSupabase,
+        refreshUserData,
       }}
     >
       {children}
