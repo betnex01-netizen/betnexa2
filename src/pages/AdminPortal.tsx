@@ -72,50 +72,8 @@ const AdminPortal = () => {
     updateGameRef.current = updateGame;
   }, [updateGame]);
 
-  // Real-time timer for live games - fetch server time to sync across all users
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const liveBets = gamesRef.current.filter(g => g.isKickoffStarted);
-      
-      if (liveBets.length === 0) return;
-      
-      for (const game of liveBets) {
-        try {
-          // Log exactly what ID we're using
-          console.log(`📡 [TIMER FETCH] Calling timer endpoint for game: id=${game.id}, type=${typeof game.id}`);
-          
-          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
-          const response = await fetch(`${apiUrl}/api/admin/games/${game.id}/time`);
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`❌ [TIMER] ${response.status} error for ${game.id}:`, errorText);
-            continue;
-          }
-
-          const data = await response.json();
-          
-          if (data.success && data.minute !== undefined && data.seconds !== undefined) {
-            console.log(`✅ [TIMER] ${data.gameId || game.id}: ${String(data.minute).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")}`);
-
-            updateGameRef.current(game.id, { 
-              minute: data.minute, 
-              seconds: data.seconds,
-              isKickoffStarted: data.isKickoffStarted,
-              kickoffStartTime: data.kickoffStartTime
-            });
-          } else {
-            console.warn(`⚠️  [TIMER] Invalid response for ${game.id}:`, data);
-          }
-        } catch (error) {
-          console.error(`❌ [TIMER] Exception for ${game.id}:`, error);
-        }
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-
-  }, []);
+  // Timer polling is now handled by OddsContext - no need to duplicate here
+  // The games state from OddsContext is already updated every second for live games
 
   // Fetch users from backend when component mounts
   useEffect(() => {
