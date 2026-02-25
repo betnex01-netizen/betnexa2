@@ -135,77 +135,89 @@ function generateDefaultMarkets(gameUUID, homeOdds, drawOdds, awayOdds) {
 router.get('/games/:gameId/time', async (req, res) => {
   try {
     const { gameId } = req.params;
-    console.log(`⏱️ [TIMER] Fetching time for gameId: ${gameId}`);
+    console.log(`\n⏱️ [TIMER] Request for gameId: ${gameId}`);
 
-    // Try search by id first
-    const { data: gameById } = await supabase
-      .from('games')
-      .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
-      .eq('id', gameId)
-      .maybeSingle();
-
-    let game = gameById;
-
-    // If not found by id, try by game_id
-    if (!game) {
-      const { data: gameByCode } = await supabase
-        .from('games')
-        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
-        .eq('game_id', gameId)
-        .maybeSingle();
-
-      game = gameByCode;
+    if (!gameId) {
+      return res.status(400).json({
+        success: false,
+        error: 'gameId parameter required'
+      });
     }
 
-    // If still not found
-    if (!game) {
-      console.warn(`⚠️  [TIMER] Game not found: ${gameId}`);
-      
-      // Debug: fetch all games to show what's available
-      const { data: allGames, error: allError } = await supabase
-        .from('games')
-        .select('id, game_id, status, is_kickoff_started')
-        .limit(5);
+    // Query the database - search by game_id field (the text ID)
+    const query = supabase
+      .from('games')
+      .select('id, game_id, kickoff_start_time, is_kickoff_started, status')
+      .eq('game_id', gameId);
 
-      console.log(`📊 [TIMER DEBUG] Games in database:`, allGames?.map(g => ({
-        uuid: g.id,
-        game_id: g.game_id,
-        status: g.status
-      })));
+    const { data, error } = await query.maybeSingle();
+
+    // Check for query errors
+    if (error) {
+      console.error(`❌ [TIMER] Query error:`, error.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Database query failed',
+        details: error.message
+      });
+    }
+
+    // No game found
+    if (!data) {
+      console.warn(`⚠️  [TIMER] No game found with game_id: ${gameId}`);
+      
+      // Show what games exist for debugging
+      const { data: allGames } = await supabase
+        .from('games')
+        .select('id, game_id')
+        .limit(10);
+
+      console.log(`📊 [TIMER] Available games:`, allGames?.map(g => g.game_id));
 
       return res.status(404).json({
         success: false,
         error: 'Game not found',
-        gameId,
-        availableGames: allGames?.map(g => ({ id: g.id, game_id: g.game_id }))
+        searched_for: gameId,
+        available_game_ids: allGames?.map(g => g.game_id) || []
       });
     }
 
-    // Calculate current time
+    // Game found!
+    console.log(`✅ [TIMER] Found game: ${data.game_id}`);
+
+    // Calculate current server time
     const serverNow = Date.now();
-    const kickoffMs = game.kickoff_start_time ? new Date(game.kickoff_start_time).getTime() : null;
+    const kickoffStartTime = data.kickoff_start_time;
+    const kickoffMs = kickoffStartTime ? new Date(kickoffStartTime).getTime() : null;
 
     let minute = 0;
     let seconds = 0;
 
-    // Only calculate elapsed time if game is live
-    if (game.is_kickoff_started && kickoffMs && !isNaN(kickoffMs)) {
+    // Calculate elapsed time only if game is live
+    if (data.is_kickoff_started && kickoffMs && !isNaN(kickoffMs)) {
       const elapsedMs = serverNow - kickoffMs;
-      const totalSeconds = Math.floor(elapsedMs / 1000);
-      minute = Math.floor(totalSeconds / 60);
-      seconds = totalSeconds % 60;
+      const elapsedSeconds = Math.floor(elapsedMs / 1000);
+      minute = Math.floor(elapsedSeconds / 60);
+      seconds = elapsedSeconds % 60;
+
+      console.log(`🎯 [TIMER] ${data.game_id}: ${String(minute).padStart(2, '0')}:${String(seconds).padStart(2, '0')} (elapsed: ${elapsedSeconds}s)`);
+    } else {
+      console.log(`⏹️  [TIMER] ${data.game_id}: Game not started yet (is_kickoff_started: ${data.is_kickoff_started})`);
     }
 
+    // Send response
     res.json({
       success: true,
       minute,
       seconds,
       serverTime: serverNow,
-      kickoffStartTime: game.kickoff_start_time,
-      isKickoffStarted: game.is_kickoff_started
+      kickoffStartTime: data.kickoff_start_time,
+      isKickoffStarted: data.is_kickoff_started,
+      gameId: data.game_id
     });
+
   } catch (error) {
-    console.error('❌ [TIMER] Error:', error.message);
+    console.error('❌ [TIMER] Exception:', error.message);
     res.status(500).json({
       success: false,
       error: 'Server error',
