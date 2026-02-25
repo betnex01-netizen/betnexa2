@@ -72,52 +72,43 @@ const AdminPortal = () => {
     updateGameRef.current = updateGame;
   }, [updateGame]);
 
-  // Real-time timer for live games - updates EVERY SECOND with elapsed time from kickoff
+  // Real-time timer for live games - fetch server time to sync across all users
   useEffect(() => {
-    const interval = setInterval(() => {
-      gamesRef.current.forEach((game) => {
-        if (!game.isKickoffStarted || !game.kickoffStartTime) return;
-
+    const interval = setInterval(async () => {
+      const liveBets = gamesRef.current.filter(g => g.isKickoffStarted);
+      
+      for (const game of liveBets) {
         try {
-          // Parse the kickoff timestamp
-          const kickoffMs = typeof game.kickoffStartTime === 'string' 
-            ? new Date(game.kickoffStartTime).getTime() 
-            : game.kickoffStartTime;
+          // Fetch server time to ensure all clients see the same timer
+          const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+          const response = await fetch(`${apiUrl}/api/admin/games/${game.id}/time`);
           
-          if (isNaN(kickoffMs)) {
-            console.error('❌ Invalid kickoff time:', game.kickoffStartTime);
-            return;
-          }
+          if (!response.ok) continue;
 
-          const now = Date.now();
-          const elapsedMs = now - kickoffMs;
+          const data = await response.json();
           
-          // Safety: skip if elapsed time is too large (likely stale old game)
-          if (elapsedMs > 18000000) {  // 5 hours
-            return;
-          }
+          if (data.success && data.minute !== undefined && data.seconds !== undefined) {
+            // Only log every 10 seconds to reduce noise
+            if (data.seconds === 0) {
+              console.log(`⏱️  Game ${game.id.substring(0, 8)}: ${String(data.minute).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")} (from server)`);
+            }
 
-          const totalSeconds = Math.floor(elapsedMs / 1000);
-          const minute = Math.floor(totalSeconds / 60);
-          const seconds = totalSeconds % 60;
-
-          // Only log every 10 seconds to reduce noise
-          if (seconds === 0) {
-            console.log(`⏱️  Game ${game.id.substring(0, 8)}: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`);
-          }
-
-          // Always update minute and seconds, let admin decide when to end game
-          if (minute !== game.minute || seconds !== (game.seconds || 0)) {
-            // Update only if values changed
-            updateGameRef.current(game.id, { minute, seconds });
+            // Update game if time changed
+            if (data.minute !== game.minute || data.seconds !== (game.seconds || 0)) {
+              updateGameRef.current(game.id, { 
+                minute: data.minute, 
+                seconds: data.seconds 
+              });
+            }
           }
         } catch (error) {
-          console.error('Error in timer calculation:', error);
+          console.error(`Error fetching game time for ${game.id}:`, error);
         }
-      });
+      }
     }, 1000);
 
     return () => clearInterval(interval);
+
   }, []);
 
   // Fetch users from backend when component mounts

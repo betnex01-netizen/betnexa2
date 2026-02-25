@@ -240,6 +240,62 @@ router.get('/games', async (req, res) => {
   }
 });
 
+// GET: Get current server time for a game (for synchronized timer)
+router.get('/games/:gameId/time', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    console.log(`\n⏱️  [GET /api/admin/games/${gameId}/time] Getting server time for game...`);
+
+    const { data: game, error } = await supabase
+      .from('games')
+      .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
+      .eq('game_id', gameId)
+      .single();
+
+    if (error || !game) {
+      console.error('❌ Game not found:', error?.message || 'Game not found');
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Game not found' 
+      });
+    }
+
+    // Get current server time
+    const serverNow = Date.now();
+    const kickoffMs = game.kickoff_start_time 
+      ? new Date(game.kickoff_start_time).getTime() 
+      : null;
+
+    let minute = game.minute || 0;
+    let seconds = game.seconds || 0;
+
+    // If game is live, calculate elapsed time from server's perspective
+    if (game.is_kickoff_started && kickoffMs && !isNaN(kickoffMs)) {
+      const elapsedMs = serverNow - kickoffMs;
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      minute = Math.floor(totalSeconds / 60);
+      seconds = totalSeconds % 60;
+    }
+
+    console.log(`⏱️  Game time: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")} (server time: ${new Date(serverNow).toISOString()})`);
+
+    res.json({ 
+      success: true, 
+      serverTime: serverNow,
+      kickoffStartTime: game.kickoff_start_time,
+      isKickoffStarted: game.is_kickoff_started,
+      minute,
+      seconds
+    });
+  } catch (error) {
+    console.error('❌ Get game time error:', error.message || error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get game time' 
+    });
+  }
+});
+
 // POST: Create a new game
 router.post('/games', checkAdmin, async (req, res) => {
   try {
