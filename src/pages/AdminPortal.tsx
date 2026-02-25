@@ -1021,6 +1021,18 @@ const AdminPortal = () => {
                           onClick={() => {
                             setEditingGameDetails(editingGameDetails === game.id ? null : game.id);
                             if (editingGameDetails !== game.id) {
+                              // Safely parse the kickoff time
+                              let kickoffTimeStr = game.time || new Date().toISOString();
+                              try {
+                                // Try to parse as date
+                                const parsedDate = new Date(kickoffTimeStr);
+                                if (isNaN(parsedDate.getTime())) {
+                                  kickoffTimeStr = new Date().toISOString();
+                                }
+                              } catch (e) {
+                                kickoffTimeStr = new Date().toISOString();
+                              }
+                              
                               setGameDetailsEdit({
                                 ...gameDetailsEdit,
                                 [game.id]: {
@@ -1030,7 +1042,7 @@ const AdminPortal = () => {
                                   homeOdds: game.homeOdds.toString(),
                                   drawOdds: game.drawOdds.toString(),
                                   awayOdds: game.awayOdds.toString(),
-                                  kickoffTime: game.time
+                                  kickoffTime: kickoffTimeStr
                                 }
                               });
                             }
@@ -1059,8 +1071,29 @@ const AdminPortal = () => {
                               <label className="text-xs text-muted-foreground">Kickoff Time</label>
                               <Input
                                 type="datetime-local"
-                                value={gameDetailsEdit[game.id]?.kickoffTime ? new Date(gameDetailsEdit[game.id].kickoffTime).toISOString().slice(0, 16) : ""}
-                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], kickoffTime: new Date(e.target.value).toISOString() } })}
+                                value={
+                                  gameDetailsEdit[game.id]?.kickoffTime 
+                                    ? (() => {
+                                        try {
+                                          const date = new Date(gameDetailsEdit[game.id].kickoffTime);
+                                          if (isNaN(date.getTime())) return "";
+                                          return date.toISOString().slice(0, 16);
+                                        } catch (e) {
+                                          return "";
+                                        }
+                                      })()
+                                    : ""
+                                }
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    try {
+                                      const newDate = new Date(e.target.value + ':00').toISOString();
+                                      setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], kickoffTime: newDate } });
+                                    } catch (err) {
+                                      console.error('Error parsing date:', err);
+                                    }
+                                  }
+                                }}
                                 className="h-7 text-xs"
                               />
                             </div>
