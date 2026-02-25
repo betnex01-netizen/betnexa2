@@ -383,7 +383,9 @@ const AdminPortal = () => {
       const data = await response.json();
 
       if (data.success) {
-        const kickoffStartTime = data.game?.kickoff_start_time || now;
+        // Use the current time we just sent, NOT the backend's response
+        // This ensures the timer starts at 0:00 correctly
+        console.log(`🎯 Kickoff started at: ${now}`);
         
         // Start timer immediately at 0:00 and begin counting
         updateGame(gameId, {
@@ -394,7 +396,7 @@ const AdminPortal = () => {
           awayScore: 0,
           isKickoffStarted: true,
           gamePaused: false,
-          kickoffStartTime: kickoffStartTime
+          kickoffStartTime: now
         });
         alert('✅ Kickoff started! Timer counting 0:00');
       } else {
