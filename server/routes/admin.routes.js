@@ -244,26 +244,82 @@ router.get('/games', async (req, res) => {
 router.get('/games/:gameId/time', async (req, res) => {
   try {
     const { gameId } = req.params;
+    const isUUID = isValidUUID(gameId);
 
-    // Check if gameId is UUID or text game_id
-    let gameQuery = supabase.from('games').select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds');
-    
-    if (isValidUUID(gameId)) {
-      gameQuery = gameQuery.eq('id', gameId);
+    console.log(`\n⏱️ [TIMER REQUEST] gameId=${gameId}, isUUID=${isUUID}`);
+
+    let game = null;
+    let error = null;
+
+    // Try primary search method based on format
+    if (isUUID) {
+      console.log(`🔍 [TIMER] Searching by UUID id...`);
+      const result = await supabase
+        .from('games')
+        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
+        .eq('id', gameId)
+        .maybeSingle();
+      
+      game = result.data;
+      error = result.error;
+
+      // If not found, try by game_id as fallback
+      if (!game && !error) {
+        console.log(`🔄 [TIMER] UUID search failed, trying game_id...`);
+        const fallbackResult = await supabase
+          .from('games')
+          .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
+          .eq('game_id', gameId)
+          .maybeSingle();
+        
+        game = fallbackResult.data;
+        error = fallbackResult.error;
+      }
     } else {
-      gameQuery = gameQuery.eq('game_id', gameId);
+      console.log(`🔍 [TIMER] Searching by game_id...`);
+      const result = await supabase
+        .from('games')
+        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
+        .eq('game_id', gameId)
+        .maybeSingle();
+      
+      game = result.data;
+      error = result.error;
+
+      // If not found, try by id as fallback
+      if (!game && !error) {
+        console.log(`🔄 [TIMER] game_id search failed, trying UUID id...`);
+        const fallbackResult = await supabase
+          .from('games')
+          .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
+          .eq('id', gameId)
+          .maybeSingle();
+        
+        game = fallbackResult.data;
+        error = fallbackResult.error;
+      }
     }
 
-    const { data: game, error } = await gameQuery.maybeSingle();
+    if (error) {
+      console.error(`❌ [TIMER] Query error:`, error);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Query failed',
+        details: error.message
+      });
+    }
 
-    if (error || !game) {
-      console.error(`❌ [TIME] Game not found for gameId: ${gameId}. Error: ${error?.message || 'Not found'}`);
+    if (!game) {
+      console.error(`❌ [TIMER] Game not found. Tried both id and game_id for: ${gameId}`);
       return res.status(404).json({ 
         success: false, 
         error: 'Game not found',
-        gameId
+        gameId,
+        tried: ['id', 'game_id']
       });
     }
+
+    console.log(`✅ [TIMER] Found game. id=${game.id?.substring(0, 8)}, game_id=${game.game_id}, kickoff=${game.is_kickoff_started}`);
 
     // Get current server time
     const serverNow = Date.now();
@@ -280,9 +336,11 @@ router.get('/games/:gameId/time', async (req, res) => {
       minute = Math.floor(totalSeconds / 60);
       seconds = totalSeconds % 60;
       
-      console.log(`⏱️  [TIME] ${gameId}: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")} (elapsed: ${totalSeconds}s, kickoff: ${new Date(kickoffMs).toISOString()})`);
+      console.log(`✅ [TIMER] ${gameId}: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")} (elapsed: ${totalSeconds}s)`);
     } else if (game.is_kickoff_started) {
-      console.warn(`⚠️  [TIME] Game ${gameId} is kickoff started but kickoffMs is invalid. kickoffTimeStr=${kickoffTimeStr}, kickoffMs=${kickoffMs}`);
+      console.warn(`⚠️  [TIMER] Game is kickoff_started but kickoffMs invalid. kickoff_start_time=${kickoffTimeStr}`);
+    } else {
+      console.log(`ℹ️  [TIMER] Game not live yet. is_kickoff_started=${game.is_kickoff_started}`);
     }
 
     res.json({ 
@@ -297,7 +355,8 @@ router.get('/games/:gameId/time', async (req, res) => {
     console.error('❌ Get game time error:', error.message || error);
     res.status(500).json({ 
       success: false, 
-      error: 'Failed to get game time' 
+      error: 'Failed to get game time',
+      details: error.message
     });
   }
 });
