@@ -149,7 +149,7 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
         {liveStatus.isLive ? (
           <Badge variant="live">
             <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-live" />
-            {liveStatus.minute}:{String(liveStatus.seconds).padStart(2, "0")}'
+            {String(Math.floor(liveStatus.minute)).padStart(2, "0")}:{String(Math.floor(liveStatus.seconds)).padStart(2, "0")}'
           </Badge>
         ) : displayGame.gamePaused && displayGame.minute === 45 ? (
           <Badge variant="live">

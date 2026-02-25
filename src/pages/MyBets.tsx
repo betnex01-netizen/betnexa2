@@ -401,7 +401,7 @@ export default function MyBets() {
                           )}
                           {getMatchStatus(selection.matchId, selection).status === "live" && (
                             <Badge variant="live" className="text-[10px]">
-                              LIVE {liveMinutes[selection.matchId]?.minute ?? games.find((g) => g.id === selection.matchId)?.minute ?? 0}:{String(liveMinutes[selection.matchId]?.seconds ?? 0).padStart(2, "0")}'
+                              LIVE {String(Math.floor(liveMinutes[selection.matchId]?.minute ?? games.find((g) => g.id === selection.matchId)?.minute ?? 0)).padStart(2, "0")}:{String(Math.floor(liveMinutes[selection.matchId]?.seconds ?? 0)).padStart(2, "0")}'
                             </Badge>
                           )}
                           {getMatchStatus(selection.matchId, selection).status === "pending" && (

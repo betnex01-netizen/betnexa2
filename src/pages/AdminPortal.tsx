@@ -923,7 +923,7 @@ const AdminPortal = () => {
                             <div className="grid grid-cols-2 gap-2">
                               <div className="text-center">
                                 <p className="text-xs text-muted-foreground">Minute</p>
-                                <p className="text-lg font-bold text-primary">{game.minute ?? 0}:{String(game.seconds ?? 0).padStart(2, "0")}'</p>
+                                <p className="text-lg font-bold text-primary">{String(Math.floor(game.minute ?? 0)).padStart(2, "0")}:{String(Math.floor(game.seconds ?? 0)).padStart(2, "0")}'</p>
                                 {game.gamePaused && game.minute === 45 && (
                                   <p className="text-xs text-gold font-semibold">HALFTIME</p>
                                 )}
@@ -1446,7 +1446,7 @@ const AdminPortal = () => {
                                       <div className="mt-1 text-[10px] text-muted-foreground">
                                         <span className="mr-2">Score: {matchGame.homeScore || 0}-{matchGame.awayScore || 0}</span>
                                         <span className="px-1.5 py-0.5 rounded bg-secondary text-xs capitalize">
-                                          {matchGame.status === "live" && matchGame.isKickoffStarted ? `LIVE ${matchGame.minute}:${String(matchGame.seconds ?? 0).padStart(2, "0")}'` : matchGame.status}
+                                          {matchGame.status === "live" && matchGame.isKickoffStarted ? `LIVE ${String(Math.floor(matchGame.minute ?? 0)).padStart(2, "0")}:${String(Math.floor(matchGame.seconds ?? 0)).padStart(2, "0")}'` : matchGame.status}
                                         </span>
                                       </div>
                                     )}
