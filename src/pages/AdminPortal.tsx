@@ -84,13 +84,13 @@ const AdminPortal = () => {
   // Fetch users from backend when component mounts
   useEffect(() => {
     console.log('📦 Fetching users from backend...');
-    fetchUsersFromBackend();
+    fetchUsersFromBackend(loggedInUser?.phone);
     
     // Also fetch transactions and payments
     console.log('📦 Fetching transactions and payments...');
     fetchAllTransactions();
     fetchAllPayments();
-  }, []);
+  }, [loggedInUser?.phone]);
 
   const handleAdminActivateWithdrawal = async (userId: string, userName: string) => {
     setActivatingUserId(userId);

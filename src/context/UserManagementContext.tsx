@@ -30,72 +30,7 @@ interface UserManagementContextType {
 const UserManagementContext = createContext<UserManagementContextType | undefined>(undefined);
 
 export function UserManagementProvider({ children }: { children: ReactNode }) {
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: "user1",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+254712345678",
-      password: "1234",
-      username: "john_doe",
-      verified: true,
-      level: "Gold Member",
-      joinDate: "2024-06-15",
-      totalBets: 245,
-      totalWinnings: 15750,
-      accountBalance: 10000,
-      withdrawalActivated: false,
-      withdrawalActivationDate: null,
-    },
-    {
-      id: "user2",
-      name: "Sarah Kennedy",
-      email: "sarah.k@example.com",
-      phone: "+254712345679",
-      password: "5678",
-      username: "sarah_k",
-      verified: true,
-      level: "Silver Member",
-      joinDate: "2024-08-20",
-      totalBets: 120,
-      totalWinnings: 8500,
-      accountBalance: 5200,
-      withdrawalActivated: true,
-      withdrawalActivationDate: "2025-12-10T15:30:00",
-    },
-    {
-      id: "user3",
-      name: "Mike Johnson",
-      email: "mike99@example.com",
-      phone: "+254712345680",
-      password: "9012",
-      username: "mike99",
-      verified: false,
-      level: "Bronze Member",
-      joinDate: "2024-10-10",
-      totalBets: 45,
-      totalWinnings: 2100,
-      accountBalance: 3500,
-      withdrawalActivated: false,
-      withdrawalActivationDate: null,
-    },
-    {
-      id: "user4",
-      name: "Bet King",
-      email: "betking@example.com",
-      phone: "+254712345681",
-      password: "3456",
-      username: "betking",
-      verified: true,
-      level: "Gold Member",
-      joinDate: "2024-05-05",
-      totalBets: 890,
-      totalWinnings: 45000,
-      accountBalance: 22500,
-      withdrawalActivated: true,
-      withdrawalActivationDate: "2025-10-15T10:20:00",
-    },
-  ]);
+  const [users, setUsers] = useState<User[]>([]);
 
   const updateUser = (userId: string, userData: Partial<User>) => {
     setUsers((prev) =>
@@ -119,11 +54,12 @@ export function UserManagementProvider({ children }: { children: ReactNode }) {
     setUsers(newUsers);
   };
 
-  const fetchUsersFromBackend = async () => {
+  const fetchUsersFromBackend = async (phone?: string) => {
     try {
       console.log('📥 Fetching users from backend...');
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
-      const response = await fetch(`${apiUrl}/api/admin/users`, {
+      const queryParam = phone ? `?phone=${encodeURIComponent(phone)}` : '';
+      const response = await fetch(`${apiUrl}/api/admin/users${queryParam}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -161,6 +97,7 @@ export function UserManagementProvider({ children }: { children: ReactNode }) {
       } else {
         console.warn('⚠️  No users data in response or response not successful');
         console.log('Response data:', data);
+        console.warn('❌ Failed to fetch users - ensure admin phone is passed');
       }
     } catch (error) {
       console.error('❌ Error fetching users from backend:', error);
