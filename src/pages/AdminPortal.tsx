@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,44 +59,70 @@ const AdminPortal = () => {
   // Admin withdrawal activation state
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
 
+  // Use refs to track latest games and updateGame function in the interval
+  const gamesRef = useRef(games);
+  const updateGameRef = useRef(updateGame);
+
+  // Update refs whenever games or updateGame changes
+  useEffect(() => {
+    gamesRef.current = games;
+  }, [games]);
+
+  useEffect(() => {
+    updateGameRef.current = updateGame;
+  }, [updateGame]);
+
   // Real-time timer for live games - updates EVERY SECOND with elapsed time from kickoff
   useEffect(() => {
     const interval = setInterval(() => {
-      games.forEach((game) => {
-        if (game.isKickoffStarted && game.kickoffStartTime) {
-          try {
-            // Calculate elapsed seconds since kickoff started
-            const kickoffMs = new Date(game.kickoffStartTime).getTime();
-            
-            if (isNaN(kickoffMs)) {
-              console.error('❌ Invalid kickoff time:', game.kickoffStartTime);
-              return;
-            }
+      gamesRef.current.forEach((game) => {
+        if (!game.isKickoffStarted || !game.kickoffStartTime) return;
 
-            const now = Date.now();
-            const elapsedMs = now - kickoffMs;
-            const totalSeconds = Math.floor(elapsedMs / 1000);
-            const minute = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-
-            console.log(`⏱️ Game ${game.id.substring(0, 8)}: ${minute}:${String(seconds).padStart(2, "0")} (elapsed: ${elapsedMs}ms, kickoff: ${game.kickoffStartTime})`);
-
-            // Stop at 95 minutes
-            if (minute >= 95) {
-              updateGame(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
-            } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
-              // Update only if changed
-              updateGame(game.id, { minute, seconds });
-            }
-          } catch (error) {
-            console.error('Error in timer calculation:', error);
+        try {
+          // Parse the kickoff timestamp
+          const kickoffMs = typeof game.kickoffStartTime === 'string' 
+            ? new Date(game.kickoffStartTime).getTime() 
+            : game.kickoffStartTime;
+          
+          if (isNaN(kickoffMs)) {
+            console.error('❌ Invalid kickoff time:', game.kickoffStartTime);
+            return;
           }
+
+          const now = Date.now();
+          const elapsedMs = now - kickoffMs;
+          
+          // Safety: skip if elapsed time is too large (likely stale old game)
+          if (elapsedMs > 18000000) {  // 5 hours
+            return;
+          }
+
+          const totalSeconds = Math.floor(elapsedMs / 1000);
+          const minute = Math.floor(totalSeconds / 60);
+          const seconds = totalSeconds % 60;
+
+          // Only log every 10 seconds to reduce noise
+          if (seconds === 0) {
+            console.log(`⏱️  Game ${game.id.substring(0, 8)}: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`);
+          }
+
+          // Stop at 95 minutes
+          if (minute >= 95) {
+            if (game.minute !== 95) {
+              updateGameRef.current(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
+            }
+          } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
+            // Update only if values changed
+            updateGameRef.current(game.id, { minute, seconds });
+          }
+        } catch (error) {
+          console.error('Error in timer calculation:', error);
         }
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [games, updateGame]);
+  }, []);
 
   // Fetch users from backend when component mounts
   useEffect(() => {
