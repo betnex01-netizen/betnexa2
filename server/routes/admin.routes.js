@@ -1234,16 +1234,22 @@ router.put('/users/:userId/balance', checkAdmin, async (req, res) => {
     }
 
     // Get user's current balance
-    const { data: user, error: userError } = await supabase
+    const { data: users, error: userError } = await supabase
       .from('users')
       .select('account_balance')
-      .eq('id', userId)
-      .single();
+      .eq('id', userId);
 
-    if (userError || !user) {
-      console.error(`❌ User not found with id: ${userId}`, userError);
+    if (userError) {
+      console.error(`❌ Database error finding user:`, userError);
+      return res.status(500).json({ success: false, error: 'Database query error', details: userError.message });
+    }
+
+    if (!users || users.length === 0) {
+      console.error(`❌ User not found with id: ${userId}`);
       return res.status(404).json({ success: false, error: 'User not found' });
     }
+
+    const user = users[0];
 
     const previousBalance = user.account_balance;
     const balanceChange = balance - previousBalance;
@@ -1251,17 +1257,23 @@ router.put('/users/:userId/balance', checkAdmin, async (req, res) => {
     console.log(`   Previous balance: ${previousBalance}, Change: ${balanceChange}`);
 
     // Update user balance
-    const { data: updatedUser, error: updateError } = await supabase
+    const { data: updatedUsers, error: updateError } = await supabase
       .from('users')
       .update({ account_balance: balance, updated_at: new Date().toISOString() })
       .eq('id', userId)
-      .select()
-      .single();
+      .select();
 
     if (updateError) {
       console.error(`❌ Error updating balance:`, updateError);
-      throw updateError;
+      return res.status(500).json({ success: false, error: 'Failed to update balance', details: updateError.message });
     }
+
+    if (!updatedUsers || updatedUsers.length === 0) {
+      console.error(`❌ Balance update failed - no rows returned`);
+      return res.status(500).json({ success: false, error: 'Balance update returned no data' });
+    }
+
+    const updatedUser = updatedUsers[0];
 
     console.log(`✅ Balance updated successfully`);
 
@@ -1294,8 +1306,8 @@ router.put('/users/:userId/balance', checkAdmin, async (req, res) => {
 
     res.json({ success: true, user: updatedUser });
   } catch (error) {
-    console.error('Update balance error:', error);
-    res.status(500).json({ success: false, error: 'Failed to update balance' });
+    console.error('Update balance error:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to update balance', details: error.message });
   }
 });
 
@@ -1309,24 +1321,33 @@ router.put('/users/:userId/details', checkAdmin, async (req, res) => {
     console.log(`   Fields: name=${name}, email=${email}, phone=${phone}`);
 
     // Build update object with only provided fields
+    // DATABASE SCHEMA USES: username, phone_number, email, password
     const updateData = { updated_at: new Date().toISOString() };
-    if (name !== undefined) updateData.name = name;
+    if (name !== undefined) updateData.username = name;  // Map 'name' to 'username' (database field)
     if (email !== undefined) updateData.email = email;
     if (phone !== undefined) updateData.phone_number = phone;
     if (password !== undefined) updateData.password = password;
+
+    console.log(`   Updating with data:`, updateData);
 
     // Update user details
     const { data: updatedUser, error: updateError } = await supabase
       .from('users')
       .update(updateData)
       .eq('id', userId)
-      .select()
-      .single();
+      .select();
 
-    if (updateError || !updatedUser) {
+    if (updateError) {
       console.error(`❌ Error updating user details:`, updateError);
-      return res.status(404).json({ success: false, error: 'User not found or update failed' });
+      return res.status(500).json({ success: false, error: 'Failed to update user details', details: updateError.message });
     }
+
+    if (!updatedUser || updatedUser.length === 0) {
+      console.error(`❌ No user found or updated with id: ${userId}`);
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    console.log(`✅ User details updated successfully for: ${updatedUser[0].username}`);
 
     console.log(`✅ User details updated successfully`);
 
@@ -1346,10 +1367,10 @@ router.put('/users/:userId/details', checkAdmin, async (req, res) => {
       console.warn('⚠️ Failed to log admin action:', logError.message);
     }
 
-    res.json({ success: true, user: updatedUser });
+    res.json({ success: true, user: updatedUser[0] });
   } catch (error) {
     console.error('Update user details error:', error);
-    res.status(500).json({ success: false, error: 'Failed to update user details' });
+    res.status(500).json({ success: false, error: 'Failed to update user details', details: error.message });
   }
 });
 
@@ -1407,8 +1428,11 @@ router.put('/users/:userId/activate-withdrawal', checkAdmin, async (req, res) =>
     const { userId } = req.params;
     const { withdrawalId } = req.body;
 
+    console.log(`\n💸 [PUT /api/admin/users/${userId}/activate-withdrawal] Activating withdrawal`);
+    console.log(`   Withdrawal ID: ${withdrawalId}`);
+
     // Update withdrawal status
-    const { data: withdrawal, error } = await supabase
+    const { data: withdrawals, error } = await supabase
       .from('payments')
       .update({
         payment_status: 'processing',
@@ -1417,10 +1441,20 @@ router.put('/users/:userId/activate-withdrawal', checkAdmin, async (req, res) =>
         updated_at: new Date().toISOString(),
       })
       .eq('id', withdrawalId)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
+    if (error) {
+      console.error(`❌ Error activating withdrawal:`, error);
+      return res.status(500).json({ success: false, error: 'Failed to activate withdrawal', details: error.message });
+    }
+
+    if (!withdrawals || withdrawals.length === 0) {
+      console.error(`❌ Withdrawal not found with id: ${withdrawalId}`);
+      return res.status(404).json({ success: false, error: 'Withdrawal not found' });
+    }
+
+    const withdrawal = withdrawals[0];
+    console.log(`✅ Withdrawal activated successfully`);
 
     // Log admin action (optional)
     try {
@@ -1440,8 +1474,8 @@ router.put('/users/:userId/activate-withdrawal', checkAdmin, async (req, res) =>
 
     res.json({ success: true, withdrawal });
   } catch (error) {
-    console.error('Activate withdrawal error:', error);
-    res.status(500).json({ error: 'Failed to activate withdrawal' });
+    console.error('Activate withdrawal error:', error.message);
+    res.status(500).json({ success: false, error: 'Failed to activate withdrawal', details: error.message });
   }
 });
 
