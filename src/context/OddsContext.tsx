@@ -39,6 +39,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const gamesRef = useRef<GameOdds[]>([]);
+  const kickoffTimesRef = useRef<Record<string, number>>({}); // Track when each game kicked off
 
   // Fetch games from database on component mount
   useEffect(() => {
@@ -124,9 +125,27 @@ export function OddsProvider({ children }: { children: ReactNode }) {
       if (liveGames.length === 0) return; // No live games, skip fetch
 
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const now = Date.now();
 
       // Fetch timer for each live game in parallel
       const timerPromises = liveGames.map(async (game) => {
+        // Check if this game just kicked off (within last 2 seconds) - use local calculation
+        const kickoffTime = kickoffTimesRef.current[game.id];
+        const timeSinceKickoff = kickoffTime ? now - kickoffTime : -1;
+        
+        if (kickoffTime && timeSinceKickoff < 2000) {
+          // Game just kicked off - use local time to ensure clean 0:00 start
+          const elapsedMs = timeSinceKickoff;
+          const totalSeconds = Math.floor(elapsedMs / 1000);
+          return {
+            gameId: game.id,
+            minute: Math.floor(totalSeconds / 60),
+            seconds: totalSeconds % 60,
+            source: 'local'
+          };
+        }
+
+        // After 2 seconds, fetch from backend to stay in sync
         try {
           const response = await fetch(`${apiUrl}/api/admin/games/${game.id}/time`, {
             signal: AbortSignal.timeout(2000), // Shorter timeout for timer
@@ -138,7 +157,8 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               return {
                 gameId: game.id,
                 minute: data.minute ?? 0,
-                seconds: data.seconds ?? 0
+                seconds: data.seconds ?? 0,
+                source: 'server'
               };
             }
           }
@@ -152,7 +172,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
       const results = await Promise.all(timerPromises);
 
       // Batch all updates into a single setGames call to prevent duplicate renders/intervals
-      const validResults = results.filter((r): r is { gameId: string; minute: number; seconds: number } => r !== null);
+      const validResults = results.filter((r): r is { gameId: string; minute: number; seconds: number; source: string } => r !== null);
       
       if (validResults.length > 0) {
         setGames(prev => {
@@ -231,7 +251,18 @@ export function OddsProvider({ children }: { children: ReactNode }) {
 
   const updateGame = (id: string, updates: Partial<GameOdds>) => {
     setGames((prev) => {
-      const updated = prev.map((game) => (game.id === id ? { ...game, ...updates } : game));
+      const updated = prev.map((game) => {
+        if (game.id === id) {
+          const newGame = { ...game, ...updates };
+          // Track when game was kicked off
+          if (!game.isKickoffStarted && newGame.isKickoffStarted) {
+            kickoffTimesRef.current[id] = Date.now();
+            console.log(`⏱️ [KICKOFF] Game ${id} started at ${new Date(kickoffTimesRef.current[id]).toISOString()}`);
+          }
+          return newGame;
+        }
+        return game;
+      });
       gamesRef.current = updated;
       return updated;
     });
