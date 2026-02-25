@@ -43,7 +43,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchGames = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
         
         console.log('🔄 Fetching games from:', apiUrl);
 
@@ -112,7 +112,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
     // Auto-refresh games every 5 seconds when there are live games
     const autoRefreshInterval = setInterval(async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
         const response = await fetch(`${apiUrl}/api/admin/games`, {
           signal: AbortSignal.timeout(10000),
         });
@@ -154,7 +154,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
 
   const refreshGames = async () => {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -239,4 +239,5 @@ export function useOdds() {
   }
   return context;
 }
+
 

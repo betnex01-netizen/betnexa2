@@ -117,7 +117,7 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
     setIsPlacing(true);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       
       // Call backend to place bet and deduct balance
       const response = await fetch(`${apiUrl}/api/bets/place`, {
@@ -274,4 +274,5 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
     </div>
   );
 }
+
 

@@ -122,7 +122,7 @@ export function UserManagementProvider({ children }: { children: ReactNode }) {
   const fetchUsersFromBackend = async () => {
     try {
       console.log('📥 Fetching users from backend...');
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-n7yizv6yk-nel-developers.vercel.app';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const response = await fetch(`${apiUrl}/api/admin/users`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' }
@@ -183,4 +183,5 @@ export function useUserManagement() {
   }
   return context;
 }
+
 
