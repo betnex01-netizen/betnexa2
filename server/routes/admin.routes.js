@@ -1097,6 +1097,129 @@ router.put('/games/:gameId/end', checkAdmin, async (req, res) => {
   }
 });
 
+// PUT: Update game details (teams, league, odds, kickoff time)
+router.put('/games/:gameId/details', checkAdmin, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { league, homeTeam, awayTeam, homeOdds, drawOdds, awayOdds, kickoffTime } = req.body;
+
+    console.log(`✏️  Updating game details for: ${gameId}`);
+
+    // Find the game first
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
+
+    if (findError || !existingGame) {
+      console.error('❌ Game not found:', findError?.message);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Update game details
+    const updates = {
+      league: league || existingGame.league,
+      home_team: homeTeam || existingGame.home_team,
+      away_team: awayTeam || existingGame.away_team,
+      home_odds: homeOdds !== undefined ? parseFloat(homeOdds) : existingGame.home_odds,
+      draw_odds: drawOdds !== undefined ? parseFloat(drawOdds) : existingGame.draw_odds,
+      away_odds: awayOdds !== undefined ? parseFloat(awayOdds) : existingGame.away_odds,
+      time: kickoffTime || existingGame.time,
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: game, error } = await supabase
+      .from('games')
+      .update(updates)
+      .eq('id', existingGame.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error updating game details:', error.message);
+      return res.status(400).json({ error: 'Failed to update game', details: error.message });
+    }
+
+    console.log(`✅ Game details updated: ${gameId}`);
+    res.json({ success: true, game });
+  } catch (error) {
+    console.error('❌ Update details error:', error.message);
+    res.status(500).json({ error: 'Failed to update game details', details: error.message });
+  }
+});
+
+// PUT: Set custom time for live game timer
+router.put('/games/:gameId/set-time', checkAdmin, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { minute, seconds } = req.body;
+
+    console.log(`⏱️  Setting custom time for game: ${gameId} to ${minute}:${seconds}`);
+
+    if (minute === undefined || seconds === undefined) {
+      return res.status(400).json({ error: 'Minute and seconds required' });
+    }
+
+    // Find the game first
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
+
+    if (findError || !existingGame) {
+      console.error('❌ Game not found:', findError?.message);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Calculate new kickoff time to achieve desired minute:seconds
+    // Formula: elapsed_ms = now - kickoff_start_time
+    // We want: (minute * 60 + seconds) * 1000 = now - kickoff_start_time
+    // So: kickoff_start_time = now - ((minute * 60 + seconds) * 1000)
+    const now = new Date();
+    const targetElapsedSeconds = minute * 60 + seconds;
+    const newKickoffTime = new Date(now.getTime() - targetElapsedSeconds * 1000);
+
+    const updates = {
+      kickoff_start_time: newKickoffTime.toISOString(),
+      updated_at: now.toISOString()
+    };
+
+    const { data: game, error } = await supabase
+      .from('games')
+      .update(updates)
+      .eq('id', existingGame.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error setting time:', error.message);
+      return res.status(400).json({ error: 'Failed to set time', details: error.message });
+    }
+
+    console.log(`✅ Timer set to ${minute}:${String(seconds).padStart(2, '0')} for game ${gameId}`);
+    res.json({ 
+      success: true, 
+      game,
+      newKickoffStartTime: newKickoffTime.toISOString(),
+      minute,
+      seconds
+    });
+  } catch (error) {
+    console.error('❌ Set time error:', error.message);
+    res.status(500).json({ error: 'Failed to set time', details: error.message });
+  }
+});
+
 // PUT: Edit user balance
 router.put('/users/:userId/balance', checkAdmin, async (req, res) => {
   try {

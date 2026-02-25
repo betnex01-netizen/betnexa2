@@ -59,6 +59,12 @@ const AdminPortal = () => {
   // Admin withdrawal activation state
   const [activatingUserId, setActivatingUserId] = useState<string | null>(null);
 
+  // Game details editing state
+  const [editingGameDetails, setEditingGameDetails] = useState<string | null>(null);
+  const [gameDetailsEdit, setGameDetailsEdit] = useState<Record<string, any>>({});
+  // Custom time settings for timer
+  const [customTimeSettings, setCustomTimeSettings] = useState<Record<string, number>>({});
+
   // Use refs to track latest games and updateGame function in the interval
   const gamesRef = useRef(games);
   const updateGameRef = useRef(updateGame);
@@ -665,6 +671,98 @@ const AdminPortal = () => {
     }
   };
 
+  const updateGameDetails = async (gameId: string) => {
+    const game = games.find((g) => g.id === gameId);
+    if (!game) return;
+
+    const details = gameDetailsEdit[gameId];
+    if (!details) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      console.log(`✏️  Updating game details: ${gameId}`);
+      
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/details`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          league: details.league || game.league,
+          homeTeam: details.homeTeam || game.homeTeam,
+          awayTeam: details.awayTeam || game.awayTeam,
+          homeOdds: details.homeOdds ? parseFloat(details.homeOdds) : game.homeOdds,
+          drawOdds: details.drawOdds ? parseFloat(details.drawOdds) : game.drawOdds,
+          awayOdds: details.awayOdds ? parseFloat(details.awayOdds) : game.awayOdds,
+          kickoffTime: details.kickoffTime || game.time
+        })
+      });
+
+      const data = await response.json();
+      console.log('📊 Update details response:', data);
+
+      if (data.success) {
+        updateGame(gameId, {
+          league: details.league || game.league,
+          homeTeam: details.homeTeam || game.homeTeam,
+          awayTeam: details.awayTeam || game.awayTeam,
+          homeOdds: details.homeOdds ? parseFloat(details.homeOdds) : game.homeOdds,
+          drawOdds: details.drawOdds ? parseFloat(details.drawOdds) : game.drawOdds,
+          awayOdds: details.awayOdds ? parseFloat(details.awayOdds) : game.awayOdds,
+          time: details.kickoffTime || game.time
+        });
+        setEditingGameDetails(null);
+        const newEdit = { ...gameDetailsEdit };
+        delete newEdit[gameId];
+        setGameDetailsEdit(newEdit);
+        alert('✅ Game details updated!');
+      } else {
+        console.error('❌ Update error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to update game details'}`);
+      }
+    } catch (error) {
+      console.error('Error updating game details:', error);
+      alert('Failed to update game details: ' + error.message);
+    }
+  };
+
+  const setCustomGameTime = async (gameId: string, minute: number, seconds: number) => {
+    const game = games.find((g) => g.id === gameId);
+    if (!game) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      console.log(`⏱️  Setting custom time for game: ${gameId} to ${minute}:${seconds}`);
+      
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/set-time`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+          minute,
+          seconds
+        })
+      });
+
+      const data = await response.json();
+      console.log('📊 Set time response:', data);
+
+      if (data.success) {
+        updateGame(gameId, {
+          minute,
+          seconds,
+          kickoffStartTime: data.newKickoffStartTime
+        });
+        alert(`✅ Timer set to ${minute}:${String(seconds).padStart(2, '0')}`);
+      } else {
+        console.error('❌ Set time error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to set timer'}`);
+      }
+    } catch (error) {
+      console.error('Error setting custom time:', error);
+      alert('Failed to set timer: ' + error.message);
+    }
+  };
+
   const settleBetBySelections = (betId: string) => {
     const outcomes = selectionOutcomes[betId];
     if (!outcomes || Object.keys(outcomes).length === 0) return;
@@ -914,6 +1012,134 @@ const AdminPortal = () => {
                         <span>2: <span className="font-mono font-bold text-primary">{game.awayOdds.toFixed(2)}</span></span>
                         <span>📅 {game.time}</span>
                       </div>
+
+                      {/* Edit Game Details Button */}
+                      <div className="mt-2">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditingGameDetails(editingGameDetails === game.id ? null : game.id);
+                            if (editingGameDetails !== game.id) {
+                              setGameDetailsEdit({
+                                ...gameDetailsEdit,
+                                [game.id]: {
+                                  league: game.league,
+                                  homeTeam: game.homeTeam,
+                                  awayTeam: game.awayTeam,
+                                  homeOdds: game.homeOdds.toString(),
+                                  drawOdds: game.drawOdds.toString(),
+                                  awayOdds: game.awayOdds.toString(),
+                                  kickoffTime: game.time
+                                }
+                              });
+                            }
+                          }}
+                          className="text-xs"
+                        >
+                          <Edit2 className="mr-1 h-3 w-3" />
+                          {editingGameDetails === game.id ? "Close Edit" : "Edit Details"}
+                        </Button>
+                      </div>
+
+                      {/* Game Details Edit Form */}
+                      {editingGameDetails === game.id && (
+                        <div className="mt-3 space-y-2 rounded-lg border border-border/50 bg-background/50 p-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">League</label>
+                              <Input
+                                value={gameDetailsEdit[game.id]?.league || ""}
+                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], league: e.target.value } })}
+                                className="h-7 text-xs"
+                                placeholder="League"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Kickoff Time</label>
+                              <Input
+                                type="datetime-local"
+                                value={gameDetailsEdit[game.id]?.kickoffTime ? new Date(gameDetailsEdit[game.id].kickoffTime).toISOString().slice(0, 16) : ""}
+                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], kickoffTime: new Date(e.target.value).toISOString() } })}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Home Team</label>
+                              <Input
+                                value={gameDetailsEdit[game.id]?.homeTeam || ""}
+                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], homeTeam: e.target.value } })}
+                                className="h-7 text-xs"
+                                placeholder="Home Team"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Away Team</label>
+                              <Input
+                                value={gameDetailsEdit[game.id]?.awayTeam || ""}
+                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], awayTeam: e.target.value } })}
+                                className="h-7 text-xs"
+                                placeholder="Away Team"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Home Odds (1)</label>
+                              <Input
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                value={gameDetailsEdit[game.id]?.homeOdds || ""}
+                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], homeOdds: e.target.value } })}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Draw (X)</label>
+                              <Input
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                value={gameDetailsEdit[game.id]?.drawOdds || ""}
+                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], drawOdds: e.target.value } })}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Away (2)</label>
+                              <Input
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                value={gameDetailsEdit[game.id]?.awayOdds || ""}
+                                onChange={(e) => setGameDetailsEdit({ ...gameDetailsEdit, [game.id]: { ...gameDetailsEdit[game.id], awayOdds: e.target.value } })}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button
+                              size="sm"
+                              variant="hero"
+                              onClick={() => updateGameDetails(game.id)}
+                              className="text-xs flex-1"
+                            >
+                              <Save className="mr-1 h-3 w-3" /> Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setEditingGameDetails(null)}
+                              className="text-xs flex-1"
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       
                       {/* Score Update Section for Live/Finished Games */}
                       {(game.status === "live" || game.status === "finished") && (
@@ -931,6 +1157,54 @@ const AdminPortal = () => {
                               <div className="text-center">
                                 <p className="text-xs text-muted-foreground">Score</p>
                                 <p className="text-lg font-bold">{game.homeScore ?? 0} - {game.awayScore ?? 0}</p>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Custom Time Setter */}
+                          {game.status === "live" && (
+                            <div className="space-y-2 pt-2 border-t border-border/30">
+                              <p className="text-xs text-muted-foreground font-semibold">Set Custom Time:</p>
+                              <div className="flex gap-1">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="120"
+                                  placeholder="Minute"
+                                  className="h-7 w-16 text-xs"
+                                  defaultValue={Math.floor(game.minute ?? 0)}
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      const minute = parseInt((e.target as HTMLInputElement).value) || 0;
+                                      const secondsInput = (e.currentTarget as any).parentElement?.querySelector('input[placeholder="Seconds"]') as HTMLInputElement;
+                                      const seconds = secondsInput ? parseInt(secondsInput.value) || 0 : 0;
+                                      setCustomGameTime(game.id, minute, seconds);
+                                    }
+                                  }}
+                                />
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="59"
+                                  placeholder="Seconds"
+                                  className="h-7 w-16 text-xs"
+                                  defaultValue={Math.floor(game.seconds ?? 0)}
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => {
+                                    const inputs = (event?.currentTarget?.parentElement?.parentElement as any)?.querySelectorAll('input');
+                                    if (inputs) {
+                                      const minute = parseInt(inputs[0].value) || 0;
+                                      const seconds = parseInt(inputs[1].value) || 0;
+                                      setCustomGameTime(game.id, minute, seconds);
+                                    }
+                                  }}
+                                  className="text-xs"
+                                >
+                                  <Clock className="mr-1 h-3 w-3" />Set
+                                </Button>
                               </div>
                             </div>
                           )}
