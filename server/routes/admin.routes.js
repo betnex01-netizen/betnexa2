@@ -160,10 +160,24 @@ router.get('/games/:gameId/time', async (req, res) => {
     // If still not found
     if (!game) {
       console.warn(`⚠️  [TIMER] Game not found: ${gameId}`);
+      
+      // Debug: fetch all games to show what's available
+      const { data: allGames, error: allError } = await supabase
+        .from('games')
+        .select('id, game_id, status, is_kickoff_started')
+        .limit(5);
+
+      console.log(`📊 [TIMER DEBUG] Games in database:`, allGames?.map(g => ({
+        uuid: g.id,
+        game_id: g.game_id,
+        status: g.status
+      })));
+
       return res.status(404).json({
         success: false,
         error: 'Game not found',
-        gameId
+        gameId,
+        availableGames: allGames?.map(g => ({ id: g.id, game_id: g.game_id }))
       });
     }
 
@@ -196,6 +210,45 @@ router.get('/games/:gameId/time', async (req, res) => {
       success: false,
       error: 'Server error',
       details: error.message
+    });
+  }
+});
+
+// DEBUG: GET all games for troubleshooting
+router.get('/debug/games', async (req, res) => {
+  try {
+    const { data: games, error } = await supabase
+      .from('games')
+      .select('id, game_id, home_team, away_team, status, is_kickoff_started, kickoff_start_time')
+      .limit(20);
+
+    if (error) {
+      return res.json({
+        success: false,
+        error: error.message,
+        games: []
+      });
+    }
+
+    console.log(`📊 [DEBUG] Found ${games?.length || 0} games`);
+
+    res.json({
+      success: true,
+      totalGames: games?.length || 0,
+      games: games?.map(g => ({
+        uuid_id: g.id,
+        game_id: g.game_id,
+        teams: `${g.home_team} vs ${g.away_team}`,
+        status: g.status,
+        kickoff_started: g.is_kickoff_started,
+        kickoff_time: g.kickoff_start_time
+      }))
+    });
+  } catch (error) {
+    console.error('❌ [DEBUG] Error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 });
