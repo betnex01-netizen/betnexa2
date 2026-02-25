@@ -580,8 +580,8 @@ const AdminPortal = () => {
       console.log('📊 Halftime response:', data);
 
       if (data.success) {
-        updateGame(gameId, { isHalftime: true });
-        alert('✅ Halftime marked!');
+        updateGame(gameId, { isHalftime: true, gamePaused: true });
+        alert('✅ Halftime marked! Timer paused at 45:00');
       } else {
         console.error('❌ Halftime error:', data);
         alert(`Error: ${data.details || data.error || 'Failed to mark halftime'}`);
@@ -589,6 +589,49 @@ const AdminPortal = () => {
     } catch (error) {
       console.error('Error marking halftime:', error);
       alert('Failed to mark halftime: ' + error.message);
+    }
+  };
+
+  const resumeSecondHalf = async (gameId: string) => {
+    const game = games.find((g) => g.id === gameId);
+    if (!game) return;
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      console.log(`▶️  Resuming second half for game: ${gameId}`);
+      
+      const response = await fetch(`${apiUrl}/api/admin/games/${gameId}/resume-second-half`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: loggedInUser.phone,
+        })
+      });
+
+      const data = await response.json();
+      console.log('📊 Resume second half response:', data);
+
+      if (data.success) {
+        // Calculate the adjusted kickoff time for 45:00 start
+        const now = new Date();
+        const secondsIntoSecondHalf = 45 * 60; // 45 minutes
+        const newKickoffTime = new Date(now.getTime() - secondsIntoSecondHalf * 1000);
+
+        updateGame(gameId, { 
+          isHalftime: false, 
+          gamePaused: false,
+          kickoffStartTime: newKickoffTime.toISOString(),
+          minute: 45,
+          seconds: 0
+        });
+        alert('✅ Second half resumed! Timer starting at 45:00');
+      } else {
+        console.error('❌ Resume second half error:', data);
+        alert(`Error: ${data.details || data.error || 'Failed to resume second half'}`);
+      }
+    } catch (error) {
+      console.error('Error resuming second half:', error);
+      alert('Failed to resume second half: ' + error.message);
     }
   };
 
@@ -946,6 +989,17 @@ const AdminPortal = () => {
                                 className="text-xs"
                               >
                                 ⏱️ Halftime
+                              </Button>
+                            )}
+
+                            {game.status === "live" && game.isHalftime && (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => resumeSecondHalf(game.id)}
+                                className="text-xs"
+                              >
+                                ▶️ Resume 2nd Half
                               </Button>
                             )}
 

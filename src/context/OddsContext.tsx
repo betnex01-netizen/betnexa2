@@ -159,6 +159,8 @@ export function OddsProvider({ children }: { children: ReactNode }) {
                 gameId: game.id,
                 minute: data.minute ?? 0,
                 seconds: data.seconds ?? 0,
+                isHalftime: data.isHalftime ?? false,
+                gamePaused: data.gamePaused ?? false,
                 source: 'server'
               };
             }
@@ -173,14 +175,14 @@ export function OddsProvider({ children }: { children: ReactNode }) {
       const results = await Promise.all(timerPromises);
 
       // Batch all updates into a single setGames call to prevent duplicate renders/intervals
-      const validResults = results.filter((r): r is { gameId: string; minute: number; seconds: number; source: string } => r !== null);
+      const validResults = results.filter((r): r is { gameId: string; minute: number; seconds: number; isHalftime: boolean; gamePaused: boolean; source: string } => r !== null);
       
       if (validResults.length > 0) {
         setGames(prev => {
           const updated = prev.map(g => {
             const timerUpdate = validResults.find(r => r.gameId === g.id);
             return timerUpdate
-              ? { ...g, minute: timerUpdate.minute, seconds: timerUpdate.seconds }
+              ? { ...g, minute: timerUpdate.minute, seconds: timerUpdate.seconds, isHalftime: timerUpdate.isHalftime, gamePaused: timerUpdate.gamePaused }
               : g;
           });
           gamesRef.current = updated;

@@ -147,7 +147,7 @@ router.get('/games/:gameId/time', async (req, res) => {
     // Query the database - search by game_id field (the text ID)
     const query = supabase
       .from('games')
-      .select('id, game_id, kickoff_start_time, is_kickoff_started, status')
+      .select('id, game_id, kickoff_start_time, is_kickoff_started, status, is_halftime, game_paused')
       .eq('game_id', gameId);
 
     const { data, error } = await query.maybeSingle();
@@ -213,6 +213,8 @@ router.get('/games/:gameId/time', async (req, res) => {
       serverTime: serverNow,
       kickoffStartTime: data.kickoff_start_time,
       isKickoffStarted: data.is_kickoff_started,
+      isHalftime: data.is_halftime,
+      gamePaused: data.game_paused,
       gameId: data.game_id
     });
 
@@ -944,9 +946,11 @@ router.put('/games/:gameId/halftime', checkAdmin, async (req, res) => {
       return res.status(404).json({ error: 'Game not found' });
     }
 
-    // Mark halftime
+    // Mark halftime and pause the game
     const updates = {
       is_halftime: true,
+      game_paused: true,
+      kickoff_paused_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
@@ -967,6 +971,73 @@ router.put('/games/:gameId/halftime', checkAdmin, async (req, res) => {
   } catch (error) {
     console.error('❌ Halftime error:', error.message);
     res.status(500).json({ error: 'Failed to mark halftime', details: error.message });
+  }
+});
+
+// PUT: Resume second half 
+router.put('/games/:gameId/resume-second-half', checkAdmin, async (req, res) => {
+  try {
+    const { gameId } = req.params;
+
+    console.log(`▶️  Resuming second half for game: ${gameId}`);
+
+    // Find the game first - check if gameId is UUID or text game_id
+    let existingGameQuery = supabase.from('games').select('*');
+    
+    if (isValidUUID(gameId)) {
+      console.log(`   GameId looks like UUID, searching by id`);
+      existingGameQuery = existingGameQuery.eq('id', gameId);
+    } else {
+      console.log(`   GameId looks like text, searching by game_id`);
+      existingGameQuery = existingGameQuery.eq('game_id', gameId);
+    }
+
+    const { data: existingGame, error: findError } = await existingGameQuery.maybeSingle();
+
+    if (findError) {
+      console.error('❌ Error finding game:', findError.message);
+      return res.status(400).json({ error: 'Failed to find game', details: findError.message });
+    }
+
+    if (!existingGame) {
+      console.error('❌ No game found for resuming:', gameId);
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    // Calculate new kickoff time so timer will show 45:00
+    // Formula: elapsed_ms = now - kickoff_start_time
+    // We want: 45*60*1000 = now - kickoff_start_time
+    // So: kickoff_start_time = now - (45*60*1000)
+    const now = new Date();
+    const secondsIntoSecondHalf = 45 * 60; // 45 minutes
+    const newKickoffTime = new Date(now.getTime() - secondsIntoSecondHalf * 1000);
+
+    // Resume second half
+    const updates = {
+      is_halftime: false,
+      game_paused: false,
+      kickoff_start_time: newKickoffTime.toISOString(),
+      kickoff_paused_at: null,
+      updated_at: now.toISOString()
+    };
+
+    const { data: game, error } = await supabase
+      .from('games')
+      .update(updates)
+      .eq('id', existingGame.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error resuming second half:', error.message);
+      return res.status(400).json({ error: 'Failed to resume second half', details: error.message });
+    }
+
+    console.log(`✅ Second half resumed for game ${gameId}, timer starting at 45:00`);
+    res.json({ success: true, game });
+  } catch (error) {
+    console.error('❌ Resume second half error:', error.message);
+    res.status(500).json({ error: 'Failed to resume second half', details: error.message });
   }
 });
 

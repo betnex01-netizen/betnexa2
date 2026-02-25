@@ -147,15 +147,17 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-medium text-muted-foreground">{match.league}</span>
         {liveStatus.isLive ? (
-          <Badge variant="live">
-            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-live" />
-            {String(Math.floor(liveStatus.minute)).padStart(2, "0")}:{String(Math.floor(liveStatus.seconds)).padStart(2, "0")}'
-          </Badge>
-        ) : displayGame.gamePaused && displayGame.minute === 45 ? (
-          <Badge variant="live">
-            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-yellow-500" />
-            HALFTIME
-          </Badge>
+          displayGame.isHalftime ? (
+            <Badge variant="live">
+              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-yellow-500" />
+              HALFTIME
+            </Badge>
+          ) : (
+            <Badge variant="live">
+              <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-live" />
+              {String(Math.floor(liveStatus.minute)).padStart(2, "0")}:{String(Math.floor(liveStatus.seconds)).padStart(2, "0")}'
+            </Badge>
+          )
         ) : displayGame.status === "finished" ? (
           <Badge variant="secondary">
             FT
