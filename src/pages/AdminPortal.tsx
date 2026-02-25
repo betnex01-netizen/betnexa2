@@ -106,12 +106,8 @@ const AdminPortal = () => {
             console.log(`⏱️  Game ${game.id.substring(0, 8)}: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`);
           }
 
-          // Stop at 95 minutes
-          if (minute >= 95) {
-            if (game.minute !== 95) {
-              updateGameRef.current(game.id, { minute: 95, seconds: 0, status: "finished", isKickoffStarted: false });
-            }
-          } else if (minute !== game.minute || seconds !== (game.seconds || 0)) {
+          // Always update minute and seconds, let admin decide when to end game
+          if (minute !== game.minute || seconds !== (game.seconds || 0)) {
             // Update only if values changed
             updateGameRef.current(game.id, { minute, seconds });
           }
