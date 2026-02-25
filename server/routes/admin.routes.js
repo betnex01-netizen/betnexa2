@@ -244,117 +244,93 @@ router.get('/games', async (req, res) => {
 router.get('/games/:gameId/time', async (req, res) => {
   try {
     const { gameId } = req.params;
-    const isUUID = isValidUUID(gameId);
 
-    console.log(`\n⏱️ [TIMER REQUEST] gameId=${gameId}, isUUID=${isUUID}`);
-
+    // Simple direct search - first try by id (UUID), then by game_id (text)
     let game = null;
-    let error = null;
 
-    // Try primary search method based on format
-    if (isUUID) {
-      console.log(`🔍 [TIMER] Searching by UUID id...`);
-      const result = await supabase
-        .from('games')
-        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
-        .eq('id', gameId)
-        .maybeSingle();
-      
-      game = result.data;
-      error = result.error;
+    // Try search by id first
+    const { data: gameById, error: errorById } = await supabase
+      .from('games')
+      .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
+      .eq('id', gameId)
+      .maybeSingle();
 
-      // If not found, try by game_id as fallback
-      if (!game && !error) {
-        console.log(`🔄 [TIMER] UUID search failed, trying game_id...`);
-        const fallbackResult = await supabase
-          .from('games')
-          .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
-          .eq('game_id', gameId)
-          .maybeSingle();
-        
-        game = fallbackResult.data;
-        error = fallbackResult.error;
-      }
-    } else {
-      console.log(`🔍 [TIMER] Searching by game_id...`);
-      const result = await supabase
+    if (gameById) {
+      game = gameById;
+      console.log(`✅ [TIMER] Found game by UUID id: ${game.game_id}`);
+    }
+
+    // If not found by id, try by game_id
+    if (!game) {
+      const { data: gameByCode, error: errorByCode } = await supabase
         .from('games')
-        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
+        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
         .eq('game_id', gameId)
         .maybeSingle();
-      
-      game = result.data;
-      error = result.error;
 
-      // If not found, try by id as fallback
-      if (!game && !error) {
-        console.log(`🔄 [TIMER] game_id search failed, trying UUID id...`);
-        const fallbackResult = await supabase
-          .from('games')
-          .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds')
-          .eq('id', gameId)
-          .maybeSingle();
-        
-        game = fallbackResult.data;
-        error = fallbackResult.error;
+      if (gameByCode) {
+        game = gameByCode;
+        console.log(`✅ [TIMER] Found game by game_id code: ${gameByCode.game_id}`);
       }
     }
 
-    if (error) {
-      console.error(`❌ [TIMER] Query error:`, error);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Query failed',
-        details: error.message
-      });
-    }
-
+    // If still not found, log all games for debugging
     if (!game) {
-      console.error(`❌ [TIMER] Game not found. Tried both id and game_id for: ${gameId}`);
-      return res.status(404).json({ 
-        success: false, 
+      console.warn(`⚠️  [TIMER] Game ${gameId} not found. Checking what's in the database...`);
+      
+      const { data: allGames } = await supabase
+        .from('games')
+        .select('id, game_id, status, is_kickoff_started')
+        .limit(10);
+
+      console.log(`📊 [TIMER DEBUG] Games in database:`, allGames?.map(g => ({
+        uuid: g.id?.substring(0, 12),
+        game_id: g.game_id,
+        status: g.status,
+        active: g.is_kickoff_started
+      })));
+
+      return res.status(404).json({
+        success: false,
         error: 'Game not found',
         gameId,
-        tried: ['id', 'game_id']
+        gamesInDb: allGames?.length || 0
       });
     }
 
-    console.log(`✅ [TIMER] Found game. id=${game.id?.substring(0, 8)}, game_id=${game.game_id}, kickoff=${game.is_kickoff_started}`);
-
-    // Get current server time
+    // Calculate current time
     const serverNow = Date.now();
-    const kickoffTimeStr = game.kickoff_start_time;
-    const kickoffMs = kickoffTimeStr ? new Date(kickoffTimeStr).getTime() : null;
+    const kickoffMs = game.kickoff_start_time ? new Date(game.kickoff_start_time).getTime() : null;
 
-    let minute = game.minute || 0;
-    let seconds = game.seconds || 0;
+    let minute = 0;
+    let seconds = 0;
 
-    // If game is live, calculate elapsed time from server's perspective
+    // Only calculate elapsed time if game is live
     if (game.is_kickoff_started && kickoffMs && !isNaN(kickoffMs)) {
       const elapsedMs = serverNow - kickoffMs;
       const totalSeconds = Math.floor(elapsedMs / 1000);
       minute = Math.floor(totalSeconds / 60);
       seconds = totalSeconds % 60;
       
-      console.log(`✅ [TIMER] ${gameId}: ${String(minute).padStart(2, "0")}:${String(seconds).padStart(2, "0")} (elapsed: ${totalSeconds}s)`);
-    } else if (game.is_kickoff_started) {
-      console.warn(`⚠️  [TIMER] Game is kickoff_started but kickoffMs invalid. kickoff_start_time=${kickoffTimeStr}`);
+      console.log(`🎯 [TIMER] ${game.game_id}: ${String(minute).padStart(2, '0')}:${String(seconds).padStart(2, '0')} (elapsed: ${totalSeconds}s, status: ${game.status})`);
     } else {
-      console.log(`ℹ️  [TIMER] Game not live yet. is_kickoff_started=${game.is_kickoff_started}`);
+      console.log(`⏹️  [TIMER] ${game.game_id}: Not live yet (is_kickoff_started: ${game.is_kickoff_started}, status: ${game.status})`);
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
+      minute,
+      seconds,
       serverTime: serverNow,
       kickoffStartTime: game.kickoff_start_time,
       isKickoffStarted: game.is_kickoff_started,
-      minute,
-      seconds
+      gameId: game.game_id,
+      status: game.status
     });
   } catch (error) {
-    console.error('❌ Get game time error:', error.message || error);
-    res.status(500).json({ 
-      success: false, 
+    console.error('❌ [TIMER] Error:', error.message);
+    res.status(500).json({
+      success: false,
       error: 'Failed to get game time',
       details: error.message
     });

@@ -77,26 +77,27 @@ const AdminPortal = () => {
     const interval = setInterval(async () => {
       const liveBets = gamesRef.current.filter(g => g.isKickoffStarted);
       
-      if (liveBets.length === 0) return; // No live games, skip
+      if (liveBets.length === 0) return;
       
       for (const game of liveBets) {
         try {
-          // Fetch server time to ensure all clients see the same timer
+          // Log exactly what ID we're using
+          console.log(`📡 [TIMER FETCH] Calling timer endpoint for game: id=${game.id}, type=${typeof game.id}`);
+          
           const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
           const response = await fetch(`${apiUrl}/api/admin/games/${game.id}/time`);
           
           if (!response.ok) {
-            console.warn(`⚠️ [TIMER] Failed to fetch time for ${game.id}: ${response.status}`);
+            const errorText = await response.text();
+            console.error(`❌ [TIMER] ${response.status} error for ${game.id}:`, errorText);
             continue;
           }
 
           const data = await response.json();
           
           if (data.success && data.minute !== undefined && data.seconds !== undefined) {
-            // Log every update for debugging
-            console.log(`⏱️  [TIMER] ${game.id}: ${String(data.minute).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")}`);
+            console.log(`✅ [TIMER] ${data.gameId || game.id}: ${String(data.minute).padStart(2, "0")}:${String(data.seconds).padStart(2, "0")}`);
 
-            // ALWAYS update the game state to ensure timer counts
             updateGameRef.current(game.id, { 
               minute: data.minute, 
               seconds: data.seconds,
@@ -104,10 +105,10 @@ const AdminPortal = () => {
               kickoffStartTime: data.kickoffStartTime
             });
           } else {
-            console.warn(`⚠️ [TIMER] Invalid response data for ${game.id}:`, data);
+            console.warn(`⚠️  [TIMER] Invalid response for ${game.id}:`, data);
           }
         } catch (error) {
-          console.error(`❌ [TIMER] Error fetching game time for ${game.id}:`, error);
+          console.error(`❌ [TIMER] Exception for ${game.id}:`, error);
         }
       }
     }, 1000);
