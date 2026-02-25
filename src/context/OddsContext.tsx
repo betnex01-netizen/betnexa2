@@ -88,7 +88,22 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               kickoffPausedAt: g.kickoff_paused_at || undefined,
               isHalftime: g.is_halftime || false,
             }));
-            setGames(transformedGames);            gamesRef.current = transformedGames;            setLoadError(null);
+            
+            // Remove duplicates by ID and sort by ID for stable ordering to prevent reranking/collision issues
+            const seenIds = new Set<string>();
+            const deduplicatedGames = transformedGames.filter(game => {
+              if (seenIds.has(game.id)) {
+                console.warn(`⚠️ Duplicate game removed: ${game.id} (${game.homeTeam} vs ${game.awayTeam})`);
+                return false;
+              }
+              seenIds.add(game.id);
+              return true;
+            });
+            
+            const sortedGames = deduplicatedGames.sort((a, b) => a.id.localeCompare(b.id));
+            setGames(sortedGames);
+            gamesRef.current = sortedGames;
+            setLoadError(null);
           } else {
             console.warn('⚠️ Invalid response format:', data);
             setLoadError(null); // Don't show error, just start with empty games
@@ -179,14 +194,17 @@ export function OddsProvider({ children }: { children: ReactNode }) {
       
       if (validResults.length > 0) {
         setGames(prev => {
+          // Update games while maintaining stable sort order by ID
           const updated = prev.map(g => {
             const timerUpdate = validResults.find(r => r.gameId === g.id);
             return timerUpdate
               ? { ...g, minute: timerUpdate.minute, seconds: timerUpdate.seconds, isHalftime: timerUpdate.isHalftime, gamePaused: timerUpdate.gamePaused }
               : g;
           });
-          gamesRef.current = updated;
-          return updated;
+          // Ensure games remain sorted by ID for consistency
+          const stableSorted = updated.sort((a, b) => a.id.localeCompare(b.id));
+          gamesRef.current = stableSorted;
+          return stableSorted;
         });
       }
     }, 1000); // Poll every second for live games
@@ -232,8 +250,21 @@ export function OddsProvider({ children }: { children: ReactNode }) {
             kickoffPausedAt: g.kickoff_paused_at || undefined,
             isHalftime: g.is_halftime || false,
           }));
-          setGames(transformedGames);
-          gamesRef.current = transformedGames;
+          
+          // Remove duplicates by ID and sort by ID for stable ordering to prevent reranking/collision issues
+          const seenIds = new Set<string>();
+          const deduplicatedGames = transformedGames.filter(game => {
+            if (seenIds.has(game.id)) {
+              console.warn(`⚠️ Duplicate game removed in refresh: ${game.id} (${game.homeTeam} vs ${game.awayTeam})`);
+              return false;
+            }
+            seenIds.add(game.id);
+            return true;
+          });
+          
+          const sortedGames = deduplicatedGames.sort((a, b) => a.id.localeCompare(b.id));
+          setGames(sortedGames);
+          gamesRef.current = sortedGames;
         }
       }
     } catch (error: any) {
@@ -247,7 +278,13 @@ export function OddsProvider({ children }: { children: ReactNode }) {
 
   const addGame = (game: GameOdds) => {
     setGames((prev) => {
-      const updated = [...prev, game];
+      // Check for duplicates by ID
+      if (prev.some(g => g.id === game.id)) {
+        console.warn(`⚠️ Duplicate game detected with ID ${game.id}, skipping add`);
+        return prev;
+      }
+      // Add new game and maintain stable sort by ID
+      const updated = [...prev, game].sort((a, b) => a.id.localeCompare(b.id));
       gamesRef.current = updated;
       return updated;
     });
@@ -267,8 +304,10 @@ export function OddsProvider({ children }: { children: ReactNode }) {
         }
         return game;
       });
-      gamesRef.current = updated;
-      return updated;
+      // Maintain stable sort order by ID to prevent reranking issues
+      const stableSorted = updated.sort((a, b) => a.id.localeCompare(b.id));
+      gamesRef.current = stableSorted;
+      return stableSorted;
     });
   };
 

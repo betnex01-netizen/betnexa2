@@ -103,8 +103,9 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
   const displayGame = gameFromContext || match;
 
   // Update live status from context - reads minutes and seconds from game state
+  // Uses match.id to ensure updates are for the correct game
   useEffect(() => {
-    if (gameFromContext) {
+    if (gameFromContext && gameFromContext.id === match.id) {
       const updateStatus = () => {
         setLiveStatus({
           isLive: gameFromContext.status === "live",
@@ -120,7 +121,7 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
       const interval = setInterval(updateStatus, 1000);
       return () => clearInterval(interval);
     }
-  }, [gameFromContext]);
+  }, [gameFromContext?.id, gameFromContext?.minute, gameFromContext?.seconds, gameFromContext?.status, match.id]);
 
   const markets = generateMarketOdds(displayGame.homeOdds, displayGame.drawOdds, displayGame.awayOdds, displayGame.markets);
 

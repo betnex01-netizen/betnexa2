@@ -284,7 +284,7 @@ router.get('/games', async (req, res) => {
     const { data: games, error } = await supabase
       .from('games')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('id', { ascending: true }); // Sort by ID for stable, consistent ordering
 
     if (error) {
       console.error('❌ Database query error:', error.message, error.code);
@@ -429,6 +429,23 @@ router.post('/games', checkAdmin, async (req, res) => {
       // Note: markets field is stored separately in the markets table, not here
     };
     console.log('📊 Game data object:', JSON.stringify(gameData, null, 2));
+
+    // Check for duplicate games
+    console.log('🔍 Checking for duplicate game with ID:', gameData.game_id);
+    const { data: existingGame } = await supabase
+      .from('games')
+      .select('id')
+      .eq('game_id', gameData.game_id)
+      .single();
+    
+    if (existingGame) {
+      console.warn('⚠️ Game with this ID already exists:', gameData.game_id);
+      return res.status(409).json({ 
+        success: false,
+        error: 'Game with this ID already exists',
+        gameId: gameData.game_id
+      });
+    }
 
     console.log('🗄️  Inserting game into database');
     const { data: game, error } = await supabase
