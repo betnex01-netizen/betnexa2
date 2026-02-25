@@ -66,12 +66,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const savedUser = localStorage.getItem('betnexa_user');
-        const savedSession = localStorage.getItem('betnexa_session');
+        // Try sessionStorage first (per-tab/window isolation in multi-login)
+        const sessionUser = sessionStorage.getItem('betnexa_user');
+        const sessionSession = sessionStorage.getItem('betnexa_session');
         
-        console.log('🔐 Checking for existing session in localStorage...');
-        console.log('   Saved user:', !!savedUser);
-        console.log('   Saved session:', !!savedSession);
+        console.log('🔐 Checking for session in sessionStorage (per-tab)...');
+        console.log('   Session user:', !!sessionUser);
+        console.log('   Session data:', !!sessionSession);
+        
+        // Fallback to localStorage if no sessionStorage
+        const savedUser = sessionUser || localStorage.getItem('betnexa_user');
+        const savedSession = sessionSession || localStorage.getItem('betnexa_session');
+        
+        console.log('   Fallback to localStorage:', !sessionUser && !!savedUser);
         
         if (savedUser && savedSession) {
           try {
@@ -83,19 +90,21 @@ export function UserProvider({ children }: { children: ReactNode }) {
             // Validate required fields for refresh to work
             if (!userData.phone) {
               console.warn('⚠️ Saved user missing phone field, clearing session');
+              sessionStorage.removeItem('betnexa_user');
+              sessionStorage.removeItem('betnexa_session');
               localStorage.removeItem('betnexa_user');
               localStorage.removeItem('betnexa_session');
               setIsAuthReady(true);
               return;
             }
             
-            // Restore session immediately from localStorage (faster than database check)
+            // Restore session immediately from storage (faster than database check)
             setUser(userData);
             setSessionId(sessionData.sessionId);
             setIsLoggedIn(true);
             setIsAuthReady(true);
             
-            console.log('✅ Session restored from local storage, phone available:', userData.phone);
+            console.log('✅ Session restored, phone available:', userData.phone);
             
             // Verify session is still valid in background
             const currentSession = sessionService.getCurrentSession();
@@ -111,6 +120,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
             }
           } catch (parseError) {
             console.error('❌ Error parsing saved session:', parseError);
+            sessionStorage.removeItem('betnexa_user');
+            sessionStorage.removeItem('betnexa_session');
             localStorage.removeItem('betnexa_user');
             localStorage.removeItem('betnexa_session');
             setIsAuthReady(true);
@@ -138,11 +149,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
         setSessionId(session.sessionId);
         setIsLoggedIn(true);
         
-        // Persist to localStorage immediately
+        // Persist to both sessionStorage (per-tab isolation) and localStorage (for multi-device persistence)
+        sessionStorage.setItem('betnexa_user', JSON.stringify(userData));
+        sessionStorage.setItem('betnexa_session', JSON.stringify(session));
         localStorage.setItem('betnexa_user', JSON.stringify(userData));
         localStorage.setItem('betnexa_session', JSON.stringify(session));
         
         console.log(`✅ Login successful on device: ${session.deviceName}`);
+        console.log(`✅ Session data saved to sessionStorage (per-tab isolation)`);
       } else {
         throw new Error('Failed to create session');
       }
@@ -164,6 +178,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setSessionId(null);
       setIsLoggedIn(false);
+      // Clear from both sessionStorage (per-tab) and localStorage (persistent)
+      sessionStorage.removeItem('betnexa_user');
+      sessionStorage.removeItem('betnexa_session');
       localStorage.removeItem('betnexa_user');
       localStorage.removeItem('betnexa_session');
       console.log('✅ User logged out successfully');
@@ -174,6 +191,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (user) {
       const updatedUser = { ...user, ...userData };
       setUser(updatedUser);
+      // Persist to both sessionStorage and localStorage
+      sessionStorage.setItem('betnexa_user', JSON.stringify(updatedUser));
       localStorage.setItem('betnexa_user', JSON.stringify(updatedUser));
     }
   };
@@ -243,11 +262,32 @@ export function UserProvider({ children }: { children: ReactNode }) {
       console.warn('⚠️ Cannot refresh: user or phone missing', { user: !!user, phone: user?.phone });
       return false;
     }
+    
+    // Verify phone in current user state matches localStorage (detect cross-contamination)
+    const storedUser = sessionStorage.getItem('betnexa_user') || localStorage.getItem('betnexa_user');
+    if (storedUser) {
+      try {
+        const storedData = JSON.parse(storedUser);
+        if (storedData.phone !== user.phone) {
+          console.error(`❌ CRITICAL: Phone mismatch detected! User phone (${user.phone}) != Stored phone (${storedData.phone})`);
+          console.error('  This indicates multi-login cross-contamination. Clearing corrupted session.');
+          sessionStorage.removeItem('betnexa_user');
+          sessionStorage.removeItem('betnexa_session');
+          localStorage.removeItem('betnexa_user');
+          localStorage.removeItem('betnexa_session');
+          setIsLoggedIn(false);
+          return false;
+        }
+      } catch (e) {
+        console.warn('⚠️ Could not parse stored user for verification');
+      }
+    }
+    
     try {
-      console.log('🔄 Starting refresh for phone:', user.phone);
+      console.log(`🔄 Starting refresh for phone: ${user.phone}`);
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
       const profileUrl = `${apiUrl}/api/auth/profile/${encodeURIComponent(user.phone)}`;
-      console.log('   URL:', profileUrl);
+      console.log(`   URL: ${profileUrl}`);
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
@@ -259,7 +299,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       });
 
       clearTimeout(timeoutId);
-      console.log('   Response status:', response.status);
+      console.log(`   Response status: ${response.status}`);
 
       if (!response.ok) {
         console.warn(`⚠️ Refresh failed (HTTP ${response.status})`, response.statusText);
@@ -267,10 +307,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
 
       const data = await response.json();
-      console.log('   Response data:', data);
+      console.log(`   Response data:`, data);
 
       if (!data.success || !data.user) {
         console.warn('⚠️ Refresh response invalid:', data);
+        return false;
+      }
+
+      // Verify the refreshed user is the same as current user (prevent cross-user updates)
+      if (data.user.phone !== user.phone) {
+        console.error(`❌ CRITICAL: Response phone (${data.user.phone}) doesn't match current user phone (${user.phone})`);
+        console.error('  Ignoring this response to prevent cross-user contamination');
         return false;
       }
 
@@ -282,7 +329,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         phone: user.phone !== data.user.phone,
       };
 
-      console.log('✅ User data fetched successfully, changes:', changes);
+      console.log(`✅ User data fetched successfully for ${user.phone}, changes:`, changes);
       
       // Update user data - this will also update localStorage
       updateUser(data.user);
@@ -308,11 +355,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    console.log('⏱️ Setting up periodic user data refresh (every 15 seconds)');
+    // Capture phone at setup time to ensure this interval refreshes the correct user
+    const userPhone = user.phone;
+    console.log(`⏱️ Setting up periodic refresh for user: ${userPhone}`);
     
     // Create a wrapper to ensure refreshUserData has access to current user
     const doRefresh = async () => {
-      console.log('⏱️ Triggering refresh check...');
+      // Double-check phone is still the same (prevents cross-contamination in multi-login)
+      if (!user?.phone || user.phone !== userPhone) {
+        console.warn(`⚠️ Phone changed from ${userPhone} to ${user?.phone}, stopping old interval`);
+        return; // Don't refresh if phone has changed (user switched or logged out)
+      }
+      
+      console.log(`⏱️ Refreshing data for user: ${userPhone}`);
       try {
         await refreshUserData();
       } catch (err) {
@@ -321,20 +376,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     };
 
     // Refresh immediately on setup
-    console.log('⏱️ Running initial refresh...');
+    console.log(`⏱️ Running initial refresh for ${userPhone}...`);
     doRefresh();
 
-    // Then refresh every 15 seconds
+    // Then refresh every 15 seconds - only for this specific user
     const refreshInterval = setInterval(() => {
-      console.log('⏱️ Scheduled refresh triggered');
+      console.log(`⏱️ Scheduled refresh triggered for ${userPhone}`);
       doRefresh();
     }, 15000);
 
     return () => {
       clearInterval(refreshInterval);
-      console.log('⏹️ Stopped periodic user data refresh');
+      console.log(`⏹️ Stopped periodic refresh for ${userPhone}`);
     };
-  }, [isLoggedIn, user?.phone]);
+  }, [isLoggedIn, user, user?.phone, refreshUserData]);
 
   return (
     <UserContext.Provider
