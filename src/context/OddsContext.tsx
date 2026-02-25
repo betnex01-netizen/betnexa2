@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect, useCallback, useRef } from "react";
 
 export interface GameOdds {
   id: string;
@@ -38,6 +38,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
   const [games, setGames] = useState<GameOdds[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const gamesRef = useRef<GameOdds[]>([]);
 
   // Fetch games from database on component mount
   useEffect(() => {
@@ -85,8 +86,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               gamePaused: g.game_paused || false,
               kickoffPausedAt: g.kickoff_paused_at || undefined,
             }));
-            setGames(transformedGames);
-            setLoadError(null);
+            setGames(transformedGames);            gamesRef.current = transformedGames;            setLoadError(null);
           } else {
             console.warn('⚠️ Invalid response format:', data);
             setLoadError(null); // Don't show error, just start with empty games
@@ -140,6 +140,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
               kickoffPausedAt: g.kickoff_paused_at || undefined,
             }));
             setGames(transformedGames);
+            gamesRef.current = transformedGames;
           }
         }
       } catch (error) {
@@ -155,8 +156,8 @@ export function OddsProvider({ children }: { children: ReactNode }) {
   // Timer polling for live games - fetch server time to sync across all users/admin
   useEffect(() => {
     const timerInterval = setInterval(async () => {
-      // Find all live games that are in kickoff  
-      const liveGames = games.filter(g => g.isKickoffStarted && (g.status === 'live' || g.minute === undefined));
+      // Find all live games that are in kickoff using the ref (avoids recreating interval)
+      const liveGames = gamesRef.current.filter(g => g.isKickoffStarted && (g.status === 'live' || g.minute === undefined));
       
       if (liveGames.length === 0) return; // No live games, skip fetch
 
@@ -188,22 +189,25 @@ export function OddsProvider({ children }: { children: ReactNode }) {
       // Wait for all timer fetches to complete
       const results = await Promise.all(timerPromises);
 
-      // Update all games with their new times
-      results.forEach(result => {
-        if (result) {
-          setGames(prev =>
-            prev.map(g =>
-              g.id === result.gameId
-                ? { ...g, minute: result.minute, seconds: result.seconds }
-                : g
-            )
-          );
-        }
-      });
+      // Batch all updates into a single setGames call to prevent duplicate renders/intervals
+      const validResults = results.filter((r): r is { gameId: string; minute: number; seconds: number } => r !== null);
+      
+      if (validResults.length > 0) {
+        setGames(prev => {
+          const updated = prev.map(g => {
+            const timerUpdate = validResults.find(r => r.gameId === g.id);
+            return timerUpdate
+              ? { ...g, minute: timerUpdate.minute, seconds: timerUpdate.seconds }
+              : g;
+          });
+          gamesRef.current = updated;
+          return updated;
+        });
+      }
     }, 1000); // Poll every second for live games
 
     return () => clearInterval(timerInterval);
-  }, [games]);
+  }, []); // No dependencies - interval runs once and uses ref for current games
 
   const refreshGames = async () => {
     try {
@@ -243,6 +247,7 @@ export function OddsProvider({ children }: { children: ReactNode }) {
             kickoffPausedAt: g.kickoff_paused_at || undefined,
           }));
           setGames(transformedGames);
+          gamesRef.current = transformedGames;
         }
       }
     } catch (error: any) {
@@ -255,17 +260,27 @@ export function OddsProvider({ children }: { children: ReactNode }) {
   };
 
   const addGame = (game: GameOdds) => {
-    setGames((prev) => [...prev, game]);
+    setGames((prev) => {
+      const updated = [...prev, game];
+      gamesRef.current = updated;
+      return updated;
+    });
   };
 
   const updateGame = (id: string, updates: Partial<GameOdds>) => {
-    setGames((prev) =>
-      prev.map((game) => (game.id === id ? { ...game, ...updates } : game))
-    );
+    setGames((prev) => {
+      const updated = prev.map((game) => (game.id === id ? { ...game, ...updates } : game));
+      gamesRef.current = updated;
+      return updated;
+    });
   };
 
   const removeGame = (id: string) => {
-    setGames((prev) => prev.filter((game) => game.id !== id));
+    setGames((prev) => {
+      const updated = prev.filter((game) => game.id !== id);
+      gamesRef.current = updated;
+      return updated;
+    });
   };
 
   const getGame = (id: string) => {
