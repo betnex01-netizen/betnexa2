@@ -131,6 +131,75 @@ function generateDefaultMarkets(gameUUID, homeOdds, drawOdds, awayOdds) {
   return markets;
 }
 
+// ⏱️ GET: Get current server time for a game (MUST BE BEFORE other /games routes)
+router.get('/games/:gameId/time', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    console.log(`⏱️ [TIMER] Fetching time for gameId: ${gameId}`);
+
+    // Try search by id first
+    const { data: gameById } = await supabase
+      .from('games')
+      .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
+      .eq('id', gameId)
+      .maybeSingle();
+
+    let game = gameById;
+
+    // If not found by id, try by game_id
+    if (!game) {
+      const { data: gameByCode } = await supabase
+        .from('games')
+        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
+        .eq('game_id', gameId)
+        .maybeSingle();
+
+      game = gameByCode;
+    }
+
+    // If still not found
+    if (!game) {
+      console.warn(`⚠️  [TIMER] Game not found: ${gameId}`);
+      return res.status(404).json({
+        success: false,
+        error: 'Game not found',
+        gameId
+      });
+    }
+
+    // Calculate current time
+    const serverNow = Date.now();
+    const kickoffMs = game.kickoff_start_time ? new Date(game.kickoff_start_time).getTime() : null;
+
+    let minute = 0;
+    let seconds = 0;
+
+    // Only calculate elapsed time if game is live
+    if (game.is_kickoff_started && kickoffMs && !isNaN(kickoffMs)) {
+      const elapsedMs = serverNow - kickoffMs;
+      const totalSeconds = Math.floor(elapsedMs / 1000);
+      minute = Math.floor(totalSeconds / 60);
+      seconds = totalSeconds % 60;
+    }
+
+    res.json({
+      success: true,
+      minute,
+      seconds,
+      serverTime: serverNow,
+      kickoffStartTime: game.kickoff_start_time,
+      isKickoffStarted: game.is_kickoff_started
+    });
+  } catch (error) {
+    console.error('❌ [TIMER] Error:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Server error',
+      details: error.message
+    });
+  }
+});
+
 // GET: Fetch all games
 router.get('/games', async (req, res) => {
   try {
@@ -236,103 +305,6 @@ router.get('/games', async (req, res) => {
       success: true, 
       games: [],
       message: 'Error fetching games, returning empty array'
-    });
-  }
-});
-
-// GET: Get current server time for a game (for synchronized timer)
-router.get('/games/:gameId/time', async (req, res) => {
-  try {
-    const { gameId } = req.params;
-
-    // Simple direct search - first try by id (UUID), then by game_id (text)
-    let game = null;
-
-    // Try search by id first
-    const { data: gameById, error: errorById } = await supabase
-      .from('games')
-      .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
-      .eq('id', gameId)
-      .maybeSingle();
-
-    if (gameById) {
-      game = gameById;
-      console.log(`✅ [TIMER] Found game by UUID id: ${game.game_id}`);
-    }
-
-    // If not found by id, try by game_id
-    if (!game) {
-      const { data: gameByCode, error: errorByCode } = await supabase
-        .from('games')
-        .select('id, game_id, kickoff_start_time, is_kickoff_started, minute, seconds, status')
-        .eq('game_id', gameId)
-        .maybeSingle();
-
-      if (gameByCode) {
-        game = gameByCode;
-        console.log(`✅ [TIMER] Found game by game_id code: ${gameByCode.game_id}`);
-      }
-    }
-
-    // If still not found, log all games for debugging
-    if (!game) {
-      console.warn(`⚠️  [TIMER] Game ${gameId} not found. Checking what's in the database...`);
-      
-      const { data: allGames } = await supabase
-        .from('games')
-        .select('id, game_id, status, is_kickoff_started')
-        .limit(10);
-
-      console.log(`📊 [TIMER DEBUG] Games in database:`, allGames?.map(g => ({
-        uuid: g.id?.substring(0, 12),
-        game_id: g.game_id,
-        status: g.status,
-        active: g.is_kickoff_started
-      })));
-
-      return res.status(404).json({
-        success: false,
-        error: 'Game not found',
-        gameId,
-        gamesInDb: allGames?.length || 0
-      });
-    }
-
-    // Calculate current time
-    const serverNow = Date.now();
-    const kickoffMs = game.kickoff_start_time ? new Date(game.kickoff_start_time).getTime() : null;
-
-    let minute = 0;
-    let seconds = 0;
-
-    // Only calculate elapsed time if game is live
-    if (game.is_kickoff_started && kickoffMs && !isNaN(kickoffMs)) {
-      const elapsedMs = serverNow - kickoffMs;
-      const totalSeconds = Math.floor(elapsedMs / 1000);
-      minute = Math.floor(totalSeconds / 60);
-      seconds = totalSeconds % 60;
-      
-      console.log(`🎯 [TIMER] ${game.game_id}: ${String(minute).padStart(2, '0')}:${String(seconds).padStart(2, '0')} (elapsed: ${totalSeconds}s, status: ${game.status})`);
-    } else {
-      console.log(`⏹️  [TIMER] ${game.game_id}: Not live yet (is_kickoff_started: ${game.is_kickoff_started}, status: ${game.status})`);
-    }
-
-    res.json({
-      success: true,
-      minute,
-      seconds,
-      serverTime: serverNow,
-      kickoffStartTime: game.kickoff_start_time,
-      isKickoffStarted: game.is_kickoff_started,
-      gameId: game.game_id,
-      status: game.status
-    });
-  } catch (error) {
-    console.error('❌ [TIMER] Error:', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get game time',
-      details: error.message
     });
   }
 });
