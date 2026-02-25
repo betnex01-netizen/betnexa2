@@ -1499,9 +1499,45 @@ const AdminPortal = () => {
                               variant="hero"
                               onClick={async () => {
                                 try {
+                                  const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+
+                                  // If user details are being edited, call the backend API
+                                  if (
+                                    editingUserData.name !== undefined && editingUserData.name !== user.name ||
+                                    editingUserData.email !== undefined && editingUserData.email !== user.email ||
+                                    editingUserData.phone !== undefined && editingUserData.phone !== user.phone ||
+                                    editingUserData.password !== undefined && editingUserData.password !== user.password
+                                  ) {
+                                    const updatePayload: any = { phone: loggedInUser.phone };
+                                    if (editingUserData.name !== undefined && editingUserData.name !== user.name) {
+                                      updatePayload.name = editingUserData.name;
+                                    }
+                                    if (editingUserData.email !== undefined && editingUserData.email !== user.email) {
+                                      updatePayload.email = editingUserData.email;
+                                    }
+                                    if (editingUserData.phone !== undefined && editingUserData.phone !== user.phone) {
+                                      updatePayload.phone = editingUserData.phone;
+                                    }
+                                    if (editingUserData.password !== undefined && editingUserData.password !== user.password) {
+                                      updatePayload.password = editingUserData.password;
+                                    }
+
+                                    const detailsResponse = await fetch(`${apiUrl}/api/admin/users/${user.id}/details`, {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify(updatePayload)
+                                    });
+
+                                    const detailsData = await detailsResponse.json();
+
+                                    if (!detailsData.success) {
+                                      alert(`Error: ${detailsData.error || 'Failed to update user details'}`);
+                                      return;
+                                    }
+                                  }
+
                                   // If balance is being edited, call the backend API
                                   if (editingUserData.accountBalance !== undefined && editingUserData.accountBalance !== user.accountBalance) {
-                                    const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
                                     const response = await fetch(`${apiUrl}/api/admin/users/${user.id}/balance`, {
                                       method: 'PUT',
                                       headers: { 'Content-Type': 'application/json' },

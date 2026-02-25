@@ -1226,33 +1226,44 @@ router.put('/users/:userId/balance', checkAdmin, async (req, res) => {
     const { userId } = req.params;
     const { balance, reason } = req.body;
 
+    console.log(`\n💳 [PUT /api/admin/users/${userId}/balance] Updating user balance`);
+    console.log(`   New balance: ${balance}, Reason: ${reason}`);
+
     if (balance === undefined) {
-      return res.status(400).json({ error: 'Balance amount required' });
+      return res.status(400).json({ success: false, error: 'Balance amount required' });
     }
 
     // Get user's current balance
-    const { data: user } = await supabase
+    const { data: user, error: userError } = await supabase
       .from('users')
-      .select('balance')
+      .select('account_balance')
       .eq('id', userId)
       .single();
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+    if (userError || !user) {
+      console.error(`❌ User not found with id: ${userId}`, userError);
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    const previousBalance = user.balance;
+    const previousBalance = user.account_balance;
     const balanceChange = balance - previousBalance;
 
+    console.log(`   Previous balance: ${previousBalance}, Change: ${balanceChange}`);
+
     // Update user balance
-    const { data: updatedUser, error } = await supabase
+    const { data: updatedUser, error: updateError } = await supabase
       .from('users')
-      .update({ balance, updated_at: new Date().toISOString() })
+      .update({ account_balance: balance, updated_at: new Date().toISOString() })
       .eq('id', userId)
       .select()
       .single();
 
-    if (error) throw error;
+    if (updateError) {
+      console.error(`❌ Error updating balance:`, updateError);
+      throw updateError;
+    }
+
+    console.log(`✅ Balance updated successfully`);
 
     // Record balance history
     await supabase.from('balance_history').insert([{
@@ -1284,7 +1295,61 @@ router.put('/users/:userId/balance', checkAdmin, async (req, res) => {
     res.json({ success: true, user: updatedUser });
   } catch (error) {
     console.error('Update balance error:', error);
-    res.status(500).json({ error: 'Failed to update balance' });
+    res.status(500).json({ success: false, error: 'Failed to update balance' });
+  }
+});
+
+// PUT: Update user details (name, email, phone, password)
+router.put('/users/:userId/details', checkAdmin, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name, email, phone, password } = req.body;
+
+    console.log(`\n👤 [PUT /api/admin/users/${userId}/details] Updating user details`);
+    console.log(`   Fields: name=${name}, email=${email}, phone=${phone}`);
+
+    // Build update object with only provided fields
+    const updateData = { updated_at: new Date().toISOString() };
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) updateData.email = email;
+    if (phone !== undefined) updateData.phone_number = phone;
+    if (password !== undefined) updateData.password = password;
+
+    // Update user details
+    const { data: updatedUser, error: updateError } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateError || !updatedUser) {
+      console.error(`❌ Error updating user details:`, updateError);
+      return res.status(404).json({ success: false, error: 'User not found or update failed' });
+    }
+
+    console.log(`✅ User details updated successfully`);
+
+    // Log admin action
+    try {
+      if (req.user.id && req.user.id !== 'unknown') {
+        await supabase.from('admin_logs').insert([{
+          admin_id: req.user.id,
+          action: 'update_user_details',
+          target_type: 'user',
+          target_id: userId,
+          changes: updateData,
+          description: `User details updated by admin`,
+        }]);
+      }
+    } catch (logError) {
+      console.warn('⚠️ Failed to log admin action:', logError.message);
+    }
+
+    res.json({ success: true, user: updatedUser });
+  } catch (error) {
+    console.error('Update user details error:', error);
+    res.status(500).json({ success: false, error: 'Failed to update user details' });
   }
 });
 
