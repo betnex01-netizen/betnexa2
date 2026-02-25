@@ -26,6 +26,19 @@ const marketLabels: Record<string, string> = {
   cs41: "CS 4-1", cs14: "CS 1-4", cs42: "CS 4-2", cs24: "CS 2-4", cs43: "CS 4-3", cs34: "CS 3-4", cs44: "CS 4-4",
 };
 
+// Helper function to sort games by upcoming kickoff time (closest first)
+const sortGamesByKickoffTime = (gamesToSort: any[]) => {
+  return [...gamesToSort].sort((a, b) => {
+    try {
+      const timeA = new Date(a.time).getTime();
+      const timeB = new Date(b.time).getTime();
+      return timeA - timeB; // Earlier times first (upcoming)
+    } catch (e) {
+      return 0; // If time parsing fails, maintain order
+    }
+  });
+};
+
 const AdminPortal = () => {
   const { matches, updateScore, setFinalScore } = useMatches();
   const { bets, syncBalance, updateBetStatus } = useBets();
@@ -39,7 +52,7 @@ const AdminPortal = () => {
   const [editMarkets, setEditMarkets] = useState<Record<string, number> | null>(null);
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [editingUserData, setEditingUserData] = useState<Record<string, any>>({});
-  const [newGame, setNewGame] = useState({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", status: "upcoming" as const });
+  const [newGame, setNewGame] = useState({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", kickoffDateTime: "", status: "upcoming" as const });
   const [scoreUpdate, setScoreUpdate] = useState<Record<string, { home: number; away: number }>>({});
   const [selectionOutcomes, setSelectionOutcomes] = useState<Record<string, Record<number, "won" | "lost">>>({});
   
@@ -165,6 +178,12 @@ const AdminPortal = () => {
   const addGameHandler = async () => {
     if (!newGame.homeTeam || !newGame.awayTeam) return;
     
+    // Convert kickoffDateTime to ISO string
+    let kickoffTime = new Date().toISOString();
+    if (newGame.kickoffDateTime) {
+      kickoffTime = new Date(newGame.kickoffDateTime).toISOString();
+    }
+    
     const h = parseFloat(newGame.homeOdds) || 2.0;
     const d = parseFloat(newGame.drawOdds) || 3.0;
     const a = parseFloat(newGame.awayOdds) || 3.0;
@@ -183,7 +202,7 @@ const AdminPortal = () => {
           homeOdds: h,
           drawOdds: d,
           awayOdds: a,
-          time: newGame.time,
+          time: kickoffTime,
           status: newGame.status,
           markets
         })
@@ -201,12 +220,12 @@ const AdminPortal = () => {
           homeOdds: parseFloat(data.game.home_odds),
           drawOdds: parseFloat(data.game.draw_odds),
           awayOdds: parseFloat(data.game.away_odds),
-          time: data.game.time || new Date().toISOString(),
+          time: data.game.time || kickoffTime,
           status: data.game.status || 'upcoming',
           markets: data.game.markets || {},
         };
         addGame(gameData);
-        setNewGame({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", status: "upcoming" });
+        setNewGame({ league: "", homeTeam: "", awayTeam: "", homeOdds: "", drawOdds: "", awayOdds: "", time: "", kickoffDateTime: "", status: "upcoming" });
         setShowAddGame(false);
         alert("✅ Game added successfully!");
         
@@ -971,7 +990,10 @@ const AdminPortal = () => {
                 <p className="mb-4 text-xs text-muted-foreground">Enter 1X2 odds and all other markets will be auto-generated. You can edit them after.</p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <input className={inputClass} placeholder="League (e.g. Premier League)" value={newGame.league} onChange={(e) => setNewGame({ ...newGame, league: e.target.value })} />
-                  <input className={inputClass} placeholder="Match Time" value={newGame.time} onChange={(e) => setNewGame({ ...newGame, time: e.target.value })} />
+                  <div>
+                    <label className="text-xs text-muted-foreground">Kickoff Date & Time</label>
+                    <input type="datetime-local" className={inputClass} value={newGame.kickoffDateTime} onChange={(e) => setNewGame({ ...newGame, kickoffDateTime: e.target.value })} />
+                  </div>
                   <input className={inputClass} placeholder="Home Team" value={newGame.homeTeam} onChange={(e) => setNewGame({ ...newGame, homeTeam: e.target.value })} />
                   <input className={inputClass} placeholder="Away Team" value={newGame.awayTeam} onChange={(e) => setNewGame({ ...newGame, awayTeam: e.target.value })} />
                   <input className={inputClass} placeholder="Home Odds (1)" value={newGame.homeOdds} onChange={(e) => setNewGame({ ...newGame, homeOdds: e.target.value })} />
@@ -993,7 +1015,7 @@ const AdminPortal = () => {
             )}
 
             <div className="space-y-3">
-              {games.map((game) => (
+              {sortGamesByKickoffTime(games).map((game) => (
                 <div key={game.id} className="rounded-xl border border-border/50 bg-card p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">

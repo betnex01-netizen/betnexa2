@@ -23,6 +23,19 @@ const getMarketFromType = (type: string): string => {
   return '1X2';
 };
 
+// Helper function to sort games by upcoming kickoff time (closest first)
+const sortGamesByKickoffTime = (games: any[]) => {
+  return [...games].sort((a, b) => {
+    try {
+      const timeA = new Date(a.time).getTime();
+      const timeB = new Date(b.time).getTime();
+      return timeA - timeB; // Earlier times first (upcoming)
+    } catch (e) {
+      return 0; // If time parsing fails, maintain order
+    }
+  });
+};
+
 const Index = () => {
   const [betSlip, setBetSlip] = useState<BetSlipItem[]>([]);
   const [selectedOdds, setSelectedOdds] = useState<Record<string, string>>({});
@@ -122,7 +135,7 @@ const Index = () => {
               </h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {games.filter(g => g.status === 'live').map((game) => {
+              {sortGamesByKickoffTime(games.filter(g => g.status === 'live')).map((game) => {
                 const match: Match = {
                   id: game.id,
                   league: game.league,
@@ -157,7 +170,7 @@ const Index = () => {
               </h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {games.filter(g => g.status === 'upcoming').map((game) => {
+              {sortGamesByKickoffTime(games.filter(g => g.status === 'upcoming')).map((game) => {
                 const match: Match = {
                   id: game.id,
                   league: game.league,
