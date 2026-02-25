@@ -135,7 +135,7 @@ const Index = () => {
               </h2>
             </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {sortGamesByKickoffTime(games.filter(g => g.status === 'live')).map((game) => {
+              {games.filter(g => g.status === 'live').map((game) => {
                 const match: Match = {
                   id: game.id,
                   league: game.league,
