@@ -152,6 +152,46 @@ export function OddsProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Timer polling for live games - fetch server time to sync across all users/admin
+  useEffect(() => {
+    const timerInterval = setInterval(async () => {
+      // Find all live games that are in kickoff
+      const liveGames = games.filter(g => g.isKickoffStarted && g.status === 'live');
+      
+      if (liveGames.length === 0) return; // No live games, skip fetch
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+
+      // Fetch timer for each live game
+      for (const game of liveGames) {
+        try {
+          const response = await fetch(`${apiUrl}/api/admin/games/${game.id}/time`, {
+            signal: AbortSignal.timeout(3000),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              // Update game with server time
+              setGames(prev =>
+                prev.map(g =>
+                  g.id === game.id
+                    ? { ...g, minute: data.minute ?? 0, seconds: data.seconds ?? 0 }
+                    : g
+                )
+              );
+            }
+          }
+        } catch (error) {
+          // Silently handle timer fetch errors - don't break the app
+          // console.warn(`⚠️ Timer fetch failed for ${game.id}:`, error);
+        }
+      }
+    }, 1000); // Poll every second for live games
+
+    return () => clearInterval(timerInterval);
+  }, [games]);
+
   const refreshGames = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
