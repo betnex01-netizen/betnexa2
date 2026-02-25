@@ -129,10 +129,10 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
 
   const OddBtn = ({ label, value, type }: { label: string; value: number; type: string }) => (
     <button
-      onClick={() => displayGame.status !== "live" && handleSelect(type, value)}
-      disabled={displayGame.status === "live"}
+      onClick={() => displayGame.status !== "live" && displayGame.status !== "finished" && handleSelect(type, value)}
+      disabled={displayGame.status === "live" || displayGame.status === "finished"}
       className={`odds-btn text-center ${selectedOdd === `${match.id}-${type}` ? "selected" : ""} ${
-        displayGame.status === "live" ? "opacity-50 cursor-not-allowed" : ""
+        (displayGame.status === "live" || displayGame.status === "finished") ? "opacity-50 cursor-not-allowed" : ""
       }`}
     >
       <span className="block text-[10px] text-muted-foreground">{label}</span>
@@ -190,6 +190,12 @@ export function MatchCard({ match, onSelectOdd, selectedOdd }: MatchCardProps) {
       {displayGame.status === "live" && (
         <div className="mt-2 rounded-lg border border-red-500/30 bg-red-500/10 p-2 text-center">
           <p className="text-xs font-semibold text-red-600">🔴 Betting Closed - Match is Live</p>
+        </div>
+      )}
+
+      {displayGame.status === "finished" && (
+        <div className="mt-2 rounded-lg border border-gray-500/30 bg-gray-500/10 p-2 text-center">
+          <p className="text-xs font-semibold text-gray-600">⏹️ Betting Closed - Match Finished</p>
         </div>
       )}
 

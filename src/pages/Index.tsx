@@ -32,10 +32,8 @@ const Index = () => {
   // Enable auto bet calculation
   useBetAutoCalculation();
 
-  // Filter out finished games
-  const games = apiGames.filter(
-    (game) => game.status !== "finished"
-  );
+  // Show all games including finished ones
+  const games = apiGames;
 
   const handleSelectOdd = (matchId: string, type: string, odds: number, match: Match) => {
     const key = `${matchId}-${type}`;
@@ -112,44 +110,118 @@ const Index = () => {
 
       <PromoBanner />
 
-      {/* Matches */}
+      {/* Matches - Organized by Status */}
       <section className="container mx-auto px-4 py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <h2 className="font-display text-xl font-bold uppercase tracking-wider text-foreground">
-            <TrendingUp className="mr-2 inline h-5 w-5 text-primary" />
-            Matches
-          </h2>
-          <Button variant="ghost" size="sm" className="text-xs text-primary">View All →</Button>
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {games.length > 0 ? (
-            games.map((game) => {
-              const match: Match = {
-                id: game.id,
-                league: game.league,
-                homeTeam: game.homeTeam,
-                awayTeam: game.awayTeam,
-                homeOdds: game.homeOdds,
-                drawOdds: game.drawOdds,
-                awayOdds: game.awayOdds,
-                time: game.time,
-                markets: game.markets,
-              };
-              return (
-                <MatchCard
-                  key={game.id}
-                  match={match}
-                  onSelectOdd={(id, type, odds) => handleSelectOdd(id, type, odds, match)}
-                  selectedOdd={selectedOdds[game.id] || null}
-                />
-              );
-            })
-          ) : (
-            <div className="col-span-full text-center py-12">
-              <p className="text-muted-foreground">No matches available. Check back soon!</p>
+        {/* Live Matches Section */}
+        {games.filter(g => g.status === 'live').length > 0 && (
+          <div className="mb-10">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold uppercase tracking-wider text-foreground">
+                <span className="inline-block h-3 w-3 rounded-full bg-live mr-2 animate-pulse" />
+                🔴 Live Matches
+              </h2>
             </div>
-          )}
-        </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {games.filter(g => g.status === 'live').map((game) => {
+                const match: Match = {
+                  id: game.id,
+                  league: game.league,
+                  homeTeam: game.homeTeam,
+                  awayTeam: game.awayTeam,
+                  homeOdds: game.homeOdds,
+                  drawOdds: game.drawOdds,
+                  awayOdds: game.awayOdds,
+                  time: game.time,
+                  markets: game.markets,
+                };
+                return (
+                  <MatchCard
+                    key={game.id}
+                    match={match}
+                    onSelectOdd={(id, type, odds) => handleSelectOdd(id, type, odds, match)}
+                    selectedOdd={selectedOdds[game.id] || null}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Matches Section */}
+        {games.filter(g => g.status === 'upcoming').length > 0 && (
+          <div className="mb-10">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold uppercase tracking-wider text-foreground">
+                <TrendingUp className="mr-2 inline h-5 w-5 text-primary" />
+                Upcoming Matches
+              </h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {games.filter(g => g.status === 'upcoming').map((game) => {
+                const match: Match = {
+                  id: game.id,
+                  league: game.league,
+                  homeTeam: game.homeTeam,
+                  awayTeam: game.awayTeam,
+                  homeOdds: game.homeOdds,
+                  drawOdds: game.drawOdds,
+                  awayOdds: game.awayOdds,
+                  time: game.time,
+                  markets: game.markets,
+                };
+                return (
+                  <MatchCard
+                    key={game.id}
+                    match={match}
+                    onSelectOdd={(id, type, odds) => handleSelectOdd(id, type, odds, match)}
+                    selectedOdd={selectedOdds[game.id] || null}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Finished Matches Section */}
+        {games.filter(g => g.status === 'finished').length > 0 && (
+          <div className="mb-10">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold uppercase tracking-wider text-foreground">
+                <span className="text-gray-500 mr-2">✓</span>
+                Finished Matches
+              </h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              {games.filter(g => g.status === 'finished').map((game) => {
+                const match: Match = {
+                  id: game.id,
+                  league: game.league,
+                  homeTeam: game.homeTeam,
+                  awayTeam: game.awayTeam,
+                  homeOdds: game.homeOdds,
+                  drawOdds: game.drawOdds,
+                  awayOdds: game.awayOdds,
+                  time: game.time,
+                  markets: game.markets,
+                };
+                return (
+                  <MatchCard
+                    key={game.id}
+                    match={match}
+                    onSelectOdd={(id, type, odds) => handleSelectOdd(id, type, odds, match)}
+                    selectedOdd={selectedOdds[game.id] || null}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {games.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No matches available. Check back soon!</p>
+          </div>
+        )}
       </section>
 
       <BettingSlip
