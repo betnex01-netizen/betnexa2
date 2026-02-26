@@ -12,6 +12,7 @@ import { useBets } from "@/context/BetContext";
 import { useUser } from "@/context/UserContext";
 import { useTransactions, type Transaction } from "@/context/TransactionContext";
 import balanceSyncService from "@/lib/balanceSyncService";
+import { formatTransactionDateInEAT } from "@/lib/timezoneFormatter";
 
 export default function Finance() {
   const [activeTab, setActiveTab] = useState("deposit");
@@ -732,7 +733,7 @@ export default function Finance() {
                         {transaction.type === "deposit" ? "Deposit" : "Withdrawal"}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {transaction.date}
+                        {formatTransactionDateInEAT(transaction.date)}
                       </p>
                     </div>
                   </div>

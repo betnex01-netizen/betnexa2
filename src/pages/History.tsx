@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, Calendar } from "lucide-react";
 import { useBets } from "@/context/BetContext";
 import { useTransactions } from "@/context/TransactionContext";
 import { useUser } from "@/context/UserContext";
+import { formatTransactionDateInEAT } from "@/lib/timezoneFormatter";
 
 interface HistoryEntry {
   id: string;
@@ -91,7 +92,7 @@ export default function History() {
             <p className="font-medium text-foreground">{entry.description}</p>
             <div className="mt-1 flex items-center gap-2">
               <Calendar className="h-3 w-3 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">{entry.date}</p>
+              <p className="text-xs text-muted-foreground">{formatTransactionDateInEAT(entry.date)}</p>
             </div>
           </div>
         </div>

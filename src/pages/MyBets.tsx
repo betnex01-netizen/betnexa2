@@ -11,6 +11,7 @@ import { useOdds } from "@/context/OddsContext";
 import { useUser } from "@/context/UserContext";
 import { calculateMatchMinute } from "@/lib/gameTimeCalculator";
 import { validateBetOutcome } from "@/lib/betOutcomeValidator";
+import { formatTimeInEAT } from "@/lib/timezoneFormatter";
 import {
   Share2,
   RotateCcw,
@@ -27,31 +28,6 @@ export default function MyBets() {
   const { user } = useUser();
   const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
   const [liveMinutes, setLiveMinutes] = useState<Record<string, { minute: number; seconds: number }>>({});
-
-  // Helper function to format time in EAT (East Africa Time / Nairobi timezone)
-  const formatTimeInEAT = (timeStr: string): string => {
-    try {
-      // Parse the time string (format: "HH:mm")
-      const [hours, minutes] = timeStr.split(':').map(Number);
-      
-      // Create a date object and convert to EAT (UTC+3)
-      const formatter = new Intl.DateTimeFormat('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Africa/Nairobi'
-      });
-      
-      // Create a temporary date to get the current timezone offset
-      const tempDate = new Date();
-      tempDate.setHours(hours, minutes, 0, 0);
-      
-      // Format using Nairobi timezone
-      return formatter.format(tempDate);
-    } catch (error) {
-      return timeStr; // Fallback to original time if conversion fails
-    }
-  };
 
   // Update live game display times - reads from game state every second
   useEffect(() => {

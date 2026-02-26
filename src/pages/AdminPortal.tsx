@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { calculateMatchMinute } from "@/lib/gameTimeCalculator";
 import balanceSyncService from "@/lib/balanceSyncService";
+import { formatTransactionDateInEAT } from "@/lib/timezoneFormatter";
 
 const marketLabels: Record<string, string> = {
   bttsYes: "BTTS Yes", bttsNo: "BTTS No",
@@ -1731,7 +1732,7 @@ const AdminPortal = () => {
                           {transaction.username} - {transaction.type === "deposit" ? "Deposit" : "Withdrawal"}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {transaction.date} via {transaction.method}
+                          {formatTransactionDateInEAT(transaction.date)} via {transaction.method}
                         </p>
                       </div>
                     </div>
