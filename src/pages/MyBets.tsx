@@ -91,7 +91,8 @@ export default function MyBets() {
     };
 
     loadBetsFromServer();
-  }, [user?.phone, setBets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.phone]);
 
   // Helper function to get match status and outcome - MUST BE DEFINED FIRST
   const getMatchStatus = (matchId: string, selection: typeof bets[0]["selections"][0]) => {
