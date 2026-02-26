@@ -28,6 +28,31 @@ export default function MyBets() {
   const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
   const [liveMinutes, setLiveMinutes] = useState<Record<string, { minute: number; seconds: number }>>({});
 
+  // Helper function to format time in EAT (East Africa Time / Nairobi timezone)
+  const formatTimeInEAT = (timeStr: string): string => {
+    try {
+      // Parse the time string (format: "HH:mm")
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      
+      // Create a date object and convert to EAT (UTC+3)
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Africa/Nairobi'
+      });
+      
+      // Create a temporary date to get the current timezone offset
+      const tempDate = new Date();
+      tempDate.setHours(hours, minutes, 0, 0);
+      
+      // Format using Nairobi timezone
+      return formatter.format(tempDate);
+    } catch (error) {
+      return timeStr; // Fallback to original time if conversion fails
+    }
+  };
+
   // Update live game display times - reads from game state every second
   useEffect(() => {
     const interval = setInterval(() => {
@@ -192,7 +217,7 @@ export default function MyBets() {
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant="outline">#{bet.betId}</Badge>
                   <span className="text-xs text-muted-foreground">
-                    {bet.date}, {bet.time}
+                    {bet.date}, {formatTimeInEAT(bet.time)}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -290,7 +315,7 @@ export default function MyBets() {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Prematch Bet placed at {bet.time}PM on {bet.date}
+              Prematch Bet placed at {formatTimeInEAT(bet.time)} on {bet.date}
             </p>
           </div>
 

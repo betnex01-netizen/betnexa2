@@ -38,7 +38,19 @@ const BetContext = createContext<BetContextType | undefined>(undefined);
 export function BetProvider({ children }: { children: ReactNode }) {
   const [bets, setBets] = useState<PlacedBet[]>([]);
 
-  const [balance, setBalance] = useState<number>(0); // New accounts start with 0 balance
+  // Initialize balance from localStorage user data on mount
+  const [balance, setBalance] = useState<number>(() => {
+    try {
+      const savedUser = sessionStorage.getItem('betnexa_user') || localStorage.getItem('betnexa_user');
+      if (savedUser) {
+        const user = JSON.parse(savedUser);
+        return user.accountBalance || 0;
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to initialize balance from localStorage');
+    }
+    return 0;
+  });
 
   // Listen for balance updates from UserContext (e.g., when admin edits balance in database)
   useEffect(() => {
@@ -52,7 +64,7 @@ export function BetProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('balance_updated', handleBalanceUpdate as EventListener);
     return () => window.removeEventListener('balance_updated', handleBalanceUpdate as EventListener);
-  }, []);
+  }, [balance]);
 
   const addBet = (bet: PlacedBet) => {
     setBets([bet, ...bets]);
