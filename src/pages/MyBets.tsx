@@ -12,6 +12,7 @@ import { useUser } from "@/context/UserContext";
 import { calculateMatchMinute } from "@/lib/gameTimeCalculator";
 import { validateBetOutcome } from "@/lib/betOutcomeValidator";
 import { formatTimeInEAT } from "@/lib/timezoneFormatter";
+import { formatKickoffTimeEAT } from "@/lib/timeFormatter";
 import {
   Share2,
   RotateCcw,
@@ -382,7 +383,7 @@ export default function MyBets() {
                             Start Time
                           </p>
                           <p className="font-medium text-foreground">
-                            20 Feb, {3 + idx}:45 PM
+                            {games.find((g) => g.id === selection.matchId)?.time ? formatKickoffTimeEAT(games.find((g) => g.id === selection.matchId)!.time) : 'TBA'}
                           </p>
                         </div>
                       )}
