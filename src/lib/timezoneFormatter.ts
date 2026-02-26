@@ -4,7 +4,7 @@
  */
 
 /**
- * Format a time string or ISO timestamp to East African Time (EAT)
+ * Format a time string or ISO timestamp to East African Time (EAT / UTC+3)
  * Handles both HH:mm format and full ISO timestamps
  * If isoTimestamp is provided, it takes priority for accurate conversion
  */
@@ -14,49 +14,58 @@ export const formatTimeInEAT = (timeInput: string | undefined | null, isoTimesta
   try {
     // If we have a full ISO timestamp, use it for accurate conversion (takes priority)
     if (isoTimestamp && (isoTimestamp.includes('T') || isoTimestamp.includes('-'))) {
-      const date = new Date(isoTimestamp);
-      if (!isNaN(date.getTime())) {
-        return new Intl.DateTimeFormat('en-US', {
-          timeZone: 'Africa/Nairobi',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true
-        }).format(date);
+      const utcDate = new Date(isoTimestamp);
+      if (!isNaN(utcDate.getTime())) {
+        // Explicitly add 3 hours for EAT (UTC+3)
+        const eatDate = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000);
+        
+        // Format as HH:mm AM/PM
+        let hours = eatDate.getUTCHours();
+        const minutes = String(eatDate.getUTCMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // 12-hour format
+        
+        return `${hours}:${minutes} ${ampm}`;
       }
     }
 
     // Check if timeInput is a full ISO timestamp
     if (timeInput && (timeInput.includes('T') || timeInput.includes('-'))) {
       // Parse as ISO timestamp
-      const date = new Date(timeInput);
-      if (isNaN(date.getTime())) {
+      const utcDate = new Date(timeInput);
+      if (isNaN(utcDate.getTime())) {
         return timeInput; // Return original if invalid
       }
       
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Africa/Nairobi',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }).format(date);
+      // Explicitly add 3 hours for EAT (UTC+3)
+      const eatDate = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000);
+      
+      // Format as HH:mm AM/PM
+      let hours = eatDate.getUTCHours();
+      const minutes = String(eatDate.getUTCMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; // 12-hour format
+      
+      return `${hours}:${minutes} ${ampm}`;
     }
 
     // If it's just HH:mm format (e.g., "11:49")
     if (timeInput && timeInput.includes(':')) {
-      const [hours, minutes] = timeInput.split(':');
+      // Parse HH:mm format and assume it's already in the client timezone
+      const [hours, minutes] = timeInput.split(':').map(Number);
       
-      // Create a date object with the time
-      // Since we don't know the original timezone, we'll assume it's already in the server's timezone
-      // and format it as EAT
+      // Try to format using Intl as fallback
       const tempDate = new Date();
-      tempDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      tempDate.setHours(hours, minutes, 0, 0);
       
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Africa/Nairobi',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }).format(tempDate);
+      let displayHours = hours;
+      const ampm = displayHours >= 12 ? 'PM' : 'AM';
+      displayHours = displayHours % 12;
+      displayHours = displayHours ? displayHours : 12; // 12-hour format
+      
+      return `${displayHours}:${String(minutes).padStart(2, '0')} ${ampm}`;
     }
 
     return timeInput || 'N/A';
@@ -67,7 +76,7 @@ export const formatTimeInEAT = (timeInput: string | undefined | null, isoTimesta
 };
 
 /**
- * Format a date and time combination to East African Time
+ * Format a date and time combination to East African Time (UTC+3)
  * Combines date string and time string
  */
 export const formatDateTimeInEAT = (dateStr: string | undefined, timeStr: string | undefined): string => {
@@ -75,30 +84,29 @@ export const formatDateTimeInEAT = (dateStr: string | undefined, timeStr: string
   if (!timeStr) return dateStr || 'N/A';
 
   try {
-    // Try to create an ISO string from date and time
-    // Assuming date format: "DD/MM/YYYY" or "D/M/YYYY"
-    // and time format: "HH:mm"
-    
     if (dateStr && timeStr) {
       const [day, month, year] = dateStr.split('/').map(Number);
       const [hours, minutes] = timeStr.split(':').map(Number);
       
-      // Create ISO string: YYYY-MM-DDTHH:mm:00Z
+      // Create UTC date: YYYY-MM-DDTHH:mm:00Z
       const isoString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`;
       
-      const date = new Date(isoString);
-      if (isNaN(date.getTime())) {
+      const utcDate = new Date(isoString);
+      if (isNaN(utcDate.getTime())) {
         return `${dateStr}, ${timeStr}`;
       }
 
-      const timeInEAT = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Africa/Nairobi',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      }).format(date);
+      // Add 3 hours for EAT (UTC+3)
+      const eatDate = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000);
+      
+      // Format time
+      let hours12 = eatDate.getUTCHours();
+      const mins = String(eatDate.getUTCMinutes()).padStart(2, '0');
+      const ampm = hours12 >= 12 ? 'PM' : 'AM';
+      hours12 = hours12 % 12;
+      hours12 = hours12 ? hours12 : 12;
 
-      return `${dateStr}, ${timeInEAT}`;
+      return `${dateStr}, ${hours12}:${mins} ${ampm}`;
     }
 
     return `${dateStr || ''} ${timeStr || ''}`;
@@ -109,33 +117,41 @@ export const formatDateTimeInEAT = (dateStr: string | undefined, timeStr: string
 };
 
 /**
- * Format a date string (in various formats) to EAT
+ * Format a date string (in various formats) to EAT (UTC+3)
  * Accepts: ISO strings, locale strings, and custom date formats
  */
 export const formatDateInEAT = (dateInput: string | Date | undefined | null): string => {
   if (!dateInput) return 'N/A';
 
   try {
-    let date: Date;
+    let utcDate: Date;
     
     if (typeof dateInput === 'string') {
-      date = new Date(dateInput);
-      if (isNaN(date.getTime())) {
+      utcDate = new Date(dateInput);
+      if (isNaN(utcDate.getTime())) {
         return dateInput;
       }
     } else {
-      date = dateInput;
+      utcDate = dateInput;
     }
 
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Africa/Nairobi',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).format(date);
+    // Add 3 hours for EAT (UTC+3)
+    const eatDate = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000);
+    
+    // Format: MM/DD/YYYY, HH:mm AM/PM
+    const month = String(eatDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(eatDate.getUTCDate()).padStart(2, '0');
+    const year = eatDate.getUTCFullYear();
+    
+    let hours = eatDate.getUTCHours();
+    const minutes = String(eatDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(eatDate.getUTCSeconds()).padStart(2, '0');
+    
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    
+    return `${month}/${day}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
   } catch (error) {
     console.warn('⚠️ Error formatting date in EAT:', error);
     return String(dateInput);
@@ -143,7 +159,7 @@ export const formatDateInEAT = (dateInput: string | Date | undefined | null): st
 };
 
 /**
- * Convert a transaction date string to EAT format
+ * Convert a transaction date string to EAT format (UTC+3)
  * Handles locale strings like "26/2/2026, 11:49 AM"
  */
 export const formatTransactionDateInEAT = (dateStr: string | undefined | null): string => {
@@ -151,22 +167,29 @@ export const formatTransactionDateInEAT = (dateStr: string | undefined | null): 
 
   try {
     // Try to parse the date string
-    const date = new Date(dateStr);
+    const utcDate = new Date(dateStr);
     
-    if (isNaN(date.getTime())) {
+    if (isNaN(utcDate.getTime())) {
       return dateStr; // Return original if can't parse
     }
 
-    return new Intl.DateTimeFormat('en-US', {
-      timeZone: 'Africa/Nairobi',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true
-    }).format(date);
+    // Add 3 hours for EAT (UTC+3)
+    const eatDate = new Date(utcDate.getTime() + 3 * 60 * 60 * 1000);
+    
+    // Format: MM/DD/YYYY, HH:mm:ss AM/PM
+    const month = String(eatDate.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(eatDate.getUTCDate()).padStart(2, '0');
+    const year = eatDate.getUTCFullYear();
+    
+    let hours = eatDate.getUTCHours();
+    const minutes = String(eatDate.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(eatDate.getUTCSeconds()).padStart(2, '0');
+    
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    
+    return `${month}/${day}/${year}, ${hours}:${minutes}:${seconds} ${ampm}`;
   } catch (error) {
     console.warn('⚠️ Error formatting transaction date in EAT:', error);
     return dateStr;
