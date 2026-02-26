@@ -350,15 +350,23 @@ export default function MyBets() {
                         </div>
                       </div>
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Market</p>
                         <p className="font-medium text-foreground">
                           {selection.market === 'CS' ? 'CORRECT SCORE' : selection.market === 'O/U' ? 'OVER/UNDER' : selection.market === 'HT/FT' ? 'HALF TIME/FULL TIME' : selection.market === 'DC' ? 'DOUBLE CHANCE' : selection.market === 'BTTS' ? 'BOTH TEAMS TO SCORE' : selection.market}
                         </p>
                       </div>
-                      {getMatchStatus(selection.matchId, selection).status === "live" ? (
-                        <div>
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Pick</p>
+                        <p className="font-bold text-primary">
+                          {getPickLabel(selection.type)} @ {selection.odds}
+                        </p>
+                      </div>
+                    </div>
+
+                    {getMatchStatus(selection.matchId, selection).status === "live" ? (
+                        <div className="text-sm">
                           <p className="text-xs text-muted-foreground mb-1">Score</p>
                           <div>
                             {games.find((g) => g.id === selection.matchId) && (
@@ -369,7 +377,7 @@ export default function MyBets() {
                           </div>
                         </div>
                       ) : (
-                        <div>
+                        <div className="text-sm">
                           <p className="text-xs text-muted-foreground mb-1">
                             Start Time
                           </p>
@@ -378,55 +386,48 @@ export default function MyBets() {
                           </p>
                         </div>
                       )}
-                    </div>
-                    <div className="px-3 py-2 bg-secondary/50 rounded">
-                      <p className="text-xs text-muted-foreground mb-1">Pick</p>
-                      <p className="font-bold text-primary">
-                        ({selection.market}) {getPickLabel(selection.type)} @ {selection.odds}
-                      </p>
-                    </div>
 
-                    {/* Outcome and Match Status */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="px-3 py-2 bg-secondary/50 rounded">
-                        <p className="text-xs text-muted-foreground mb-1">Outcome</p>
+                    {/* Outcome and Match Status on same row */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="px-2 py-1 bg-secondary/50 rounded">
+                        <p className="text-muted-foreground mb-1">Outcome</p>
                         <div className="flex items-center gap-1">
                           {getMatchStatus(selection.matchId, selection).outcome === "won" && (
                             <>
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                              <p className="font-bold text-green-500">Won</p>
+                              <CheckCircle className="h-3 w-3 text-green-500" />
+                              <p className="font-bold text-green-500 text-xs">Won</p>
                             </>
                           )}
                           {getMatchStatus(selection.matchId, selection).outcome === "lost" && getMatchStatus(selection.matchId, selection).status === "finished" && (
                             <>
-                              <XCircle className="h-4 w-4 text-red-500" />
-                              <p className="font-bold text-red-500">Lost</p>
+                              <XCircle className="h-3 w-3 text-red-500" />
+                              <p className="font-bold text-red-500 text-xs">Lost</p>
                             </>
                           )}
                           {getMatchStatus(selection.matchId, selection).outcome === "pending" && (
                             <>
-                              <AlertCircle className="h-4 w-4 text-yellow-500" />
-                              <p className="font-bold text-yellow-500">Pending</p>
+                              <AlertCircle className="h-3 w-3 text-yellow-500" />
+                              <p className="font-bold text-yellow-500 text-xs">Pending</p>
                             </>
                           )}
                         </div>
                       </div>
 
-                      <div className="px-3 py-2 bg-secondary/50 rounded">
-                        <p className="text-xs text-muted-foreground mb-1">Match Status</p>
+                      <div className="px-2 py-1 bg-secondary/50 rounded">
+                        <p className="text-muted-foreground mb-1">Status</p>
                         <div className="flex items-center gap-1">
                           {getMatchStatus(selection.matchId, selection).status === "finished" && (
-                            <Badge variant="secondary" className="text-[10px]">
+                            <Badge variant="secondary" className="text-[9px] px-1 py-0">
                               FT {games.find((g) => g.id === selection.matchId)?.homeScore || 0}:{games.find((g) => g.id === selection.matchId)?.awayScore || 0}
                             </Badge>
                           )}
                           {getMatchStatus(selection.matchId, selection).status === "live" && (
-                            <Badge variant="live" className="text-[10px]">
-                              LIVE {String(Math.floor(liveMinutes[selection.matchId]?.minute ?? games.find((g) => g.id === selection.matchId)?.minute ?? 0)).padStart(2, "0")}:{String(Math.floor(liveMinutes[selection.matchId]?.seconds ?? 0)).padStart(2, "0")}'
+                            <Badge variant="live" className="text-[9px] px-1 py-0">
+                              LIVE {String(Math.floor(liveMinutes[selection.matchId]?.minute ?? games.find((g) => g.id === selection.matchId)?.minute ?? 0)).padStart(2, "0")}'
                             </Badge>
                           )}
                           {getMatchStatus(selection.matchId, selection).status === "pending" && (
-                            <Badge variant="outline" className="text-[10px]">PENDING</Badge>
+                            <Badge variant="outline" className="text-[9px] px-1 py-0">PENDING</Badge>
                           )}
                         </div>
                       </div>
