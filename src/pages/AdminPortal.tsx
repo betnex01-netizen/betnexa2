@@ -1813,7 +1813,7 @@ const AdminPortal = () => {
                             >
                               {bet.status}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">{bet.date} {formatTimeInEAT(bet.time, (bet as any).createdAt)}</span>
+                            <span className="text-xs text-muted-foreground">{bet.date}</span>
                           </div>
                           <div className="grid gap-2 text-xs mb-2">
                             <p><strong>Stake:</strong> <span className="text-primary">KSH {bet.stake.toLocaleString()}</span></p>
