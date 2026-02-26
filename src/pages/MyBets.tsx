@@ -319,19 +319,19 @@ export default function MyBets() {
             </p>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Card className="bg-secondary/50 border-border p-4">
-              <p className="text-xs text-muted-foreground mb-2">Amount</p>
-              <p className="font-bold text-foreground">KSH {bet.stake.toLocaleString()}</p>
+          {/* Stats Grid - Always 3 columns horizontally */}
+          <div className="grid grid-cols-3 gap-2">
+            <Card className="bg-secondary/50 border-border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Amount</p>
+              <p className="font-bold text-foreground text-sm">KSH {bet.stake.toLocaleString()}</p>
             </Card>
-            <Card className="bg-secondary/50 border-border p-4">
-              <p className="text-xs text-muted-foreground mb-2">Possible Payout</p>
-              <p className="font-bold text-gold">KSH {bet.potentialWin.toLocaleString()}</p>
+            <Card className="bg-secondary/50 border-border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Possible Payout</p>
+              <p className="font-bold text-gold text-sm">KSH {bet.potentialWin.toLocaleString()}</p>
             </Card>
-            <Card className="bg-secondary/50 border-border p-4">
-              <p className="text-xs text-muted-foreground mb-2">W/L/T</p>
-              <p className="font-bold text-foreground">
+            <Card className="bg-secondary/50 border-border p-3">
+              <p className="text-xs text-muted-foreground mb-1">W/L/T</p>
+              <p className="font-bold text-foreground text-sm">
                 {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "won").length}/
                 {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "lost" && getMatchStatus(sel.matchId, sel).status === "finished").length}/
                 {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "pending").length}
@@ -372,14 +372,7 @@ export default function MyBets() {
             </div>
           </Card>
 
-          {/* Cashout Button */}
-          {bet.status === "Open" && (
-            <div className="space-y-3">
-              <Button className="w-full text-gold border border-gold/30 hover:bg-gold/10 bg-transparent">
-                Request Cashout
-              </Button>
-            </div>
-          )}
+          {/* Cashout Button - REMOVED */}
 
           {/* Events */}
           <div>
