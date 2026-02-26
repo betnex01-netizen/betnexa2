@@ -30,9 +30,26 @@ const marketLabels: Record<string, string> = {
 const sortGamesByKickoffTime = (gamesToSort: any[]) => {
   return [...gamesToSort].sort((a, b) => {
     try {
+      // First, prioritize by status: live > upcoming > finished
+      const statusPriority = { live: 0, upcoming: 1, finished: 2 };
+      const priorityA = statusPriority[a.status as keyof typeof statusPriority] ?? 3;
+      const priorityB = statusPriority[b.status as keyof typeof statusPriority] ?? 3;
+      
+      if (priorityA !== priorityB) {
+        return priorityA - priorityB; // Live games first, then upcoming, then finished
+      }
+      
+      // Within the same status group, sort by time
       const timeA = new Date(a.time).getTime();
       const timeB = new Date(b.time).getTime();
-      return timeA - timeB; // Earlier times first (upcoming)
+      
+      // For upcoming/live games, show closest to kickoff first (ascending time)
+      // For finished games, show most recent first (descending time)
+      if (a.status === "finished") {
+        return timeB - timeA; // Most recent finished games first
+      } else {
+        return timeA - timeB; // Upcoming/live games with closest kickoff first
+      }
     } catch (e) {
       return 0; // If time parsing fails, maintain order
     }
