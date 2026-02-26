@@ -316,39 +316,6 @@ export default function MyBets() {
             </Card>
           </div>
 
-          {/* Bet Status Summary */}
-          <Card className="border-l-4 p-4 mb-4" style={{
-            borderColor: bet.status === "Won" ? "#10b981" : bet.status === "Lost" ? "#ef4444" : "#3b82f6"
-          }}>
-            <p className="text-xs text-muted-foreground mb-2">Bet Status</p>
-            <div className="flex items-center gap-2">
-              {bet.status === "Won" && (
-                <>
-                  <CheckCircle className="h-5 w-5 text-green-500" />
-                  <p className="font-bold text-green-500 text-lg">Won</p>
-                </>
-              )}
-              {bet.status === "Lost" && (
-                <>
-                  <XCircle className="h-5 w-5 text-red-500" />
-                  <p className="font-bold text-red-500 text-lg">Lost</p>
-                </>
-              )}
-              {bet.status === "Open" && (
-                <>
-                  <AlertCircle className="h-5 w-5 text-blue-500" />
-                  <p className="font-bold text-blue-500 text-lg">Open</p>
-                </>
-              )}
-              {(bet.status === "Void" || bet.status === "Closed") && (
-                <>
-                  <AlertCircle className="h-5 w-5 text-yellow-500" />
-                  <p className="font-bold text-yellow-500 text-lg">{bet.status}</p>
-                </>
-              )}
-            </div>
-          </Card>
-
           {/* Cashout Button - REMOVED */}
 
           {/* Events */}
@@ -369,7 +336,7 @@ export default function MyBets() {
                     <div className="text-center">
                       <div className="flex items-center justify-center gap-3">
                         <div className="flex-1 text-right">
-                          <p className="font-bold text-foreground text-lg">
+                          <p className="font-bold text-foreground text-sm">
                             {selection.match.split(" vs ")[0]}
                           </p>
                         </div>
@@ -377,7 +344,7 @@ export default function MyBets() {
                           vs
                         </Badge>
                         <div className="flex-1 text-left">
-                          <p className="font-bold text-foreground text-lg">
+                          <p className="font-bold text-foreground text-sm">
                             {selection.match.split(" vs ")[1]}
                           </p>
                         </div>
