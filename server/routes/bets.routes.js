@@ -76,6 +76,7 @@ router.post('/place', async (req, res) => {
     // Create bet record
     const betId = `BET${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
     const now = new Date();
+    const isoTimestamp = now.toISOString(); // Store as ISO for proper timezone conversion
 
     const { data: bet, error: betError } = await supabase
       .from('bets')
@@ -88,7 +89,7 @@ router.post('/place', async (req, res) => {
         status: 'Open',
         bet_date: `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`,
         bet_time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`,
-        created_at: new Date().toISOString()
+        created_at: isoTimestamp
       }])
       .select()
       .single();

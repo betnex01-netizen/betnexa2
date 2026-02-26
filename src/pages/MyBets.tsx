@@ -81,6 +81,7 @@ export default function MyBets() {
             betId: bet.bet_id,
             date: bet.bet_date || new Date().toLocaleDateString(),
             time: bet.bet_time || new Date().toLocaleTimeString(),
+            createdAt: bet.created_at, // Store the ISO timestamp for proper timezone conversion
             stake: parseFloat(bet.stake),
             potentialWin: parseFloat(bet.potential_win),
             totalOdds: parseFloat(bet.total_odds),
@@ -193,7 +194,7 @@ export default function MyBets() {
                 <div className="flex items-center gap-2 mb-2">
                   <Badge variant="outline">#{bet.betId}</Badge>
                   <span className="text-xs text-muted-foreground">
-                    {bet.date}, {formatTimeInEAT(bet.time)}
+                    {bet.date}, {formatTimeInEAT(bet.time, (bet as any).createdAt)}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -291,7 +292,7 @@ export default function MyBets() {
               </Badge>
             </div>
             <p className="text-xs text-muted-foreground">
-              Prematch Bet placed at {formatTimeInEAT(bet.time)} on {bet.date}
+              Prematch Bet placed at {formatTimeInEAT(bet.time, (bet as any).createdAt)} on {bet.date}
             </p>
           </div>
 

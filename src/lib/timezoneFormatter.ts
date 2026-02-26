@@ -6,13 +6,27 @@
 /**
  * Format a time string or ISO timestamp to East African Time (EAT)
  * Handles both HH:mm format and full ISO timestamps
+ * If isoTimestamp is provided, it takes priority for accurate conversion
  */
-export const formatTimeInEAT = (timeInput: string | undefined | null): string => {
-  if (!timeInput) return 'N/A';
+export const formatTimeInEAT = (timeInput: string | undefined | null, isoTimestamp?: string | undefined | null): string => {
+  if (!timeInput && !isoTimestamp) return 'N/A';
 
   try {
-    // Check if it's a full ISO timestamp
-    if (timeInput.includes('T') || timeInput.includes('-')) {
+    // If we have a full ISO timestamp, use it for accurate conversion (takes priority)
+    if (isoTimestamp && (isoTimestamp.includes('T') || isoTimestamp.includes('-'))) {
+      const date = new Date(isoTimestamp);
+      if (!isNaN(date.getTime())) {
+        return new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Africa/Nairobi',
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }).format(date);
+      }
+    }
+
+    // Check if timeInput is a full ISO timestamp
+    if (timeInput && (timeInput.includes('T') || timeInput.includes('-'))) {
       // Parse as ISO timestamp
       const date = new Date(timeInput);
       if (isNaN(date.getTime())) {
@@ -28,7 +42,7 @@ export const formatTimeInEAT = (timeInput: string | undefined | null): string =>
     }
 
     // If it's just HH:mm format (e.g., "11:49")
-    if (timeInput.includes(':')) {
+    if (timeInput && timeInput.includes(':')) {
       const [hours, minutes] = timeInput.split(':');
       
       // Create a date object with the time
@@ -45,7 +59,7 @@ export const formatTimeInEAT = (timeInput: string | undefined | null): string =>
       }).format(tempDate);
     }
 
-    return timeInput;
+    return timeInput || 'N/A';
   } catch (error) {
     console.warn('⚠️ Error formatting time in EAT:', error, 'Input:', timeInput);
     return timeInput || 'N/A';

@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { calculateMatchMinute } from "@/lib/gameTimeCalculator";
 import balanceSyncService from "@/lib/balanceSyncService";
-import { formatTransactionDateInEAT } from "@/lib/timezoneFormatter";
+import { formatTransactionDateInEAT, formatTimeInEAT } from "@/lib/timezoneFormatter";
 
 const marketLabels: Record<string, string> = {
   bttsYes: "BTTS Yes", bttsNo: "BTTS No",
@@ -1813,7 +1813,7 @@ const AdminPortal = () => {
                             >
                               {bet.status}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">{bet.date} {bet.time}</span>
+                            <span className="text-xs text-muted-foreground">{bet.date} {formatTimeInEAT(bet.time, (bet as any).createdAt)}</span>
                           </div>
                           <div className="grid gap-2 text-xs mb-2">
                             <p><strong>Stake:</strong> <span className="text-primary">KSH {bet.stake.toLocaleString()}</span></p>
