@@ -40,8 +40,19 @@ export default function MyBets() {
           };
         }
       });
+      
+      // Only update state if there are new minutes AND they differ from current state
       if (Object.keys(newMinutes).length > 0) {
-        setLiveMinutes(newMinutes);
+        setLiveMinutes((prevMinutes) => {
+          // Check if values actually changed to prevent unnecessary re-renders
+          const hasChanged = Object.keys(newMinutes).some(
+            (id) => !prevMinutes[id] || 
+                   prevMinutes[id].minute !== newMinutes[id].minute ||
+                   prevMinutes[id].seconds !== newMinutes[id].seconds
+          );
+          
+          return hasChanged ? newMinutes : prevMinutes;
+        });
       }
     }, 1000);
 
