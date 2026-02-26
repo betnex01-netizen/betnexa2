@@ -237,9 +237,9 @@ export default function Finance() {
 
     const transactionAmount = parseInt(amount);
     
-    // Validate minimum deposit amount (300 KSH)
-    if (activeTab === "deposit" && transactionAmount < 300) {
-      alert("❌ Minimum deposit amount is KSH 300. Please enter a higher amount.");
+    // Validate minimum deposit amount (500 KSH)
+    if (activeTab === "deposit" && transactionAmount < 500) {
+      alert("❌ Minimum deposit amount is KSH 500. Please enter a higher amount.");
       return;
     }
     
@@ -575,11 +575,11 @@ export default function Finance() {
                     onChange={(e) => setAmount(e.target.value)}
                     className="mt-2"
                     disabled={isProcessing}
-                    min="300"
+                    min="500"
                     step="1"
                   />
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Minimum: KSH 300
+                    Minimum: KSH 500
                   </p>
                 </div>
 
