@@ -10,6 +10,7 @@ import { MatchProvider } from "./context/MatchContext";
 import { OddsProvider } from "./context/OddsContext";
 import { UserManagementProvider } from "./context/UserManagementContext";
 import { TransactionProvider } from "./context/TransactionContext";
+import { BalanceSyncProvider } from "./components/BalanceSyncProvider";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 import Index from "./pages/Index";
@@ -44,23 +45,25 @@ const App = () => {
               <BetProvider>
                 <MatchProvider>
                   <OddsProvider>
-                    <Toaster />
-                    <Sonner />
-                    <BrowserRouter>
-                      <Suspense fallback={<LoadingPage />}>
-                        <Routes>
-                          <Route path="/login" element={<Login />} />
-                          <Route path="/signup" element={<Signup />} />
-                          <Route path="/" element={<ProtectedRoute element={<Index />} />} />
-                          <Route path="/finance" element={<ProtectedRoute element={<Finance />} />} />
-                          <Route path="/my-bets" element={<ProtectedRoute element={<MyBets />} />} />
-                          <Route path="/history" element={<ProtectedRoute element={<History />} />} />
-                          <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
-                          <Route path="/muleiadmin" element={<AdminProtectedRoute element={<AdminPortal />} />} />
-                          <Route path="*" element={<NotFound />} />
-                        </Routes>
-                      </Suspense>
-                    </BrowserRouter>
+                    <BalanceSyncProvider>
+                      <Toaster />
+                      <Sonner />
+                      <BrowserRouter>
+                        <Suspense fallback={<LoadingPage />}>
+                          <Routes>
+                            <Route path="/login" element={<Login />} />
+                            <Route path="/signup" element={<Signup />} />
+                            <Route path="/" element={<ProtectedRoute element={<Index />} />} />
+                            <Route path="/finance" element={<ProtectedRoute element={<Finance />} />} />
+                            <Route path="/my-bets" element={<ProtectedRoute element={<MyBets />} />} />
+                            <Route path="/history" element={<ProtectedRoute element={<History />} />} />
+                            <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
+                            <Route path="/muleiadmin" element={<AdminProtectedRoute element={<AdminPortal />} />} />
+                            <Route path="*" element={<NotFound />} />
+                          </Routes>
+                        </Suspense>
+                      </BrowserRouter>
+                    </BalanceSyncProvider>
                   </OddsProvider>
                 </MatchProvider>
               </BetProvider>

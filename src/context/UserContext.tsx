@@ -333,6 +333,19 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       // Update user data - this will also update localStorage
       updateUser(data.user);
+      
+      // If balance changed, notify BetContext through localStorage event
+      if (changes.balance) {
+        console.log(`💰 Balance updated: ${user.accountBalance} → ${data.user.accountBalance}`);
+        // Dispatch a custom event that BetContext can listen to
+        window.dispatchEvent(new CustomEvent('balance_updated', { 
+          detail: { 
+            userId: user.id,
+            newBalance: data.user.accountBalance 
+          } 
+        }));
+      }
+      
       return true;
     } catch (error) {
       if (error instanceof Error) {

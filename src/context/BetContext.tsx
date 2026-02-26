@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 
 export interface PlacedBet {
   id: string;
@@ -38,6 +38,20 @@ export function BetProvider({ children }: { children: ReactNode }) {
   const [bets, setBets] = useState<PlacedBet[]>([]);
 
   const [balance, setBalance] = useState<number>(0); // New accounts start with 0 balance
+
+  // Listen for balance updates from UserContext (e.g., when admin edits balance in database)
+  useEffect(() => {
+    const handleBalanceUpdate = (event: CustomEvent) => {
+      const { newBalance } = event.detail;
+      if (typeof newBalance === 'number') {
+        console.log(`💰 BetContext: Syncing balance from UserContext: ${balance} → ${newBalance}`);
+        setBalance(newBalance);
+      }
+    };
+
+    window.addEventListener('balance_updated', handleBalanceUpdate as EventListener);
+    return () => window.removeEventListener('balance_updated', handleBalanceUpdate as EventListener);
+  }, []);
 
   const addBet = (bet: PlacedBet) => {
     setBets([bet, ...bets]);
