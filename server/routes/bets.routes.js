@@ -82,7 +82,6 @@ router.post('/place', async (req, res) => {
       .insert([{
         bet_id: betId,
         user_id: user.id,
-        phone_number: phoneNumber,
         stake: parseFloat(stake),
         potential_win: parseFloat(potentialWin),
         total_odds: parseFloat(totalOdds),
@@ -111,16 +110,31 @@ router.post('/place', async (req, res) => {
 
     // Create bet selections
     for (const selection of selections) {
+      // Parse home and away teams from match string (format: "Home vs Away")
+      const [homeTeam, awayTeam] = selection.match.split(' vs ').map(t => t.trim());
+      
+      // Get game UUID from game_id (matchId)
+      const { data: game, error: gameError } = await supabase
+        .from('games')
+        .select('id')
+        .eq('game_id', selection.matchId)
+        .single();
+
+      if (gameError || !game) {
+        console.warn('⚠️ Game not found for matchId:', selection.matchId);
+        continue;
+      }
+
       await supabase
         .from('bet_selections')
         .insert([{
           bet_id: bet.id,
-          game_id: selection.matchId,
+          game_id: game.id,
           market_key: selection.type,
           market_type: selection.market,
-          market_label: selection.marketLabel || selection.type,
-          home_team: selection.homeTeam || 'N/A',
-          away_team: selection.awayTeam || 'N/A',
+          market_label: selection.type,
+          home_team: homeTeam || 'N/A',
+          away_team: awayTeam || 'N/A',
           odds: parseFloat(selection.odds),
           outcome: 'pending'
         }]);
