@@ -8,6 +8,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { getPickLabel } from "@/components/BettingSlip";
 import { useBets } from "@/context/BetContext";
 import { useOdds } from "@/context/OddsContext";
+import { useUser } from "@/context/UserContext";
 import { calculateMatchMinute } from "@/lib/gameTimeCalculator";
 import { validateBetOutcome } from "@/lib/betOutcomeValidator";
 import {
@@ -21,8 +22,9 @@ import {
 } from "lucide-react";
 
 export default function MyBets() {
-  const { bets } = useBets();
+  const { bets, setBets } = useBets();
   const { games } = useOdds();
+  const { user } = useUser();
   const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
   const [liveMinutes, setLiveMinutes] = useState<Record<string, { minute: number; seconds: number }>>({});
 
@@ -45,6 +47,51 @@ export default function MyBets() {
 
     return () => clearInterval(interval);
   }, [games]);
+
+  // Load bets from server on page load (multi-device sync)
+  useEffect(() => {
+    if (!user?.phone) return;
+
+    const loadBetsFromServer = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+        const response = await fetch(`${apiUrl}/api/bets/user?phoneNumber=${encodeURIComponent(user.phone)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+
+        if (data.success && data.bets) {
+          // Transform backend bets to frontend format
+          const transformedBets = data.bets.map((bet: any) => ({
+            id: bet.id,
+            betId: bet.bet_id,
+            date: bet.bet_date || new Date().toLocaleDateString(),
+            time: bet.bet_time || new Date().toLocaleTimeString(),
+            stake: parseFloat(bet.stake),
+            potentialWin: parseFloat(bet.potential_win),
+            totalOdds: parseFloat(bet.total_odds),
+            status: bet.status,
+            selections: (bet.selections || []).map((sel: any) => ({
+              matchId: sel.gameRefId || sel.game_id || sel.matchId,
+              match: `${sel.home_team} vs ${sel.away_team}`,
+              type: sel.market_key,
+              market: sel.market_type,
+              odds: parseFloat(sel.odds)
+            }))
+          }));
+
+          setBets(transformedBets);
+          console.log(`✅ Loaded ${transformedBets.length} bets from server`);
+        }
+      } catch (error) {
+        console.error('⚠️ Failed to load bets from server:', error);
+      }
+    };
+
+    loadBetsFromServer();
+  }, [user?.phone, setBets]);
 
   // Helper function to get match status and outcome - MUST BE DEFINED FIRST
   const getMatchStatus = (matchId: string, selection: typeof bets[0]["selections"][0]) => {

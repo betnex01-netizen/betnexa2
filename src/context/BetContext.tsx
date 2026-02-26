@@ -30,6 +30,7 @@ interface BetContextType {
   updateBetStatus: (betId: string, status: PlacedBet["status"], amountWon?: number) => void;
   setBalance: (amount: number) => void;
   syncBalance: (newBalance: number) => void;
+  setBets: (bets: PlacedBet[]) => void;
 }
 
 const BetContext = createContext<BetContextType | undefined>(undefined);
@@ -115,7 +116,7 @@ export function BetProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <BetContext.Provider value={{ bets, addBet, removeBet, balance, deposit, withdraw, placeBet, updateBetStatus, setBalance: setBalanceHandler, syncBalance }}>
+    <BetContext.Provider value={{ bets, addBet, removeBet, balance, deposit, withdraw, placeBet, updateBetStatus, setBalance: setBalanceHandler, syncBalance, setBets }}>
       {children}
     </BetContext.Provider>
   );

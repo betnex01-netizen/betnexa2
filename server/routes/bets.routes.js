@@ -210,17 +210,20 @@ router.get('/user', async (req, res) => {
       });
     }
 
-    // Get selections for each bet
+    // Get selections for each bet with game details
     const betsWithSelections = await Promise.all(
       (bets || []).map(async (bet) => {
         const { data: selections } = await supabase
           .from('bet_selections')
-          .select('*')
+          .select('*, games:game_id(game_id)')
           .eq('bet_id', bet.id);
 
         return {
           ...bet,
-          selections: selections || []
+          selections: (selections || []).map((sel) => ({
+            ...sel,
+            gameRefId: sel.games?.game_id // Add the text reference ID
+          }))
         };
       })
     );
