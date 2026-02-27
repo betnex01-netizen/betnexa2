@@ -87,6 +87,7 @@ export default function MyBets() {
             createdAt: bet.created_at, // Store the ISO timestamp for proper timezone conversion
             stake: parseFloat(bet.stake),
             potentialWin: parseFloat(bet.potential_win),
+            amountWon: bet.amount_won ? parseFloat(bet.amount_won) : undefined,
             totalOdds: parseFloat(bet.total_odds),
             status: bet.status,
             selections: (bet.selections || []).map((sel: any) => ({
@@ -96,6 +97,7 @@ export default function MyBets() {
               market: sel.market_type,
               odds: parseFloat(sel.odds)
             }))
+          }));
           }));
 
           setBets(transformedBets);
@@ -212,6 +214,7 @@ export default function MyBets() {
             createdAt: bet.created_at,
             stake: parseFloat(bet.stake),
             potentialWin: parseFloat(bet.potential_win),
+            amountWon: bet.amount_won ? parseFloat(bet.amount_won) : undefined,
             totalOdds: parseFloat(bet.total_odds),
             status: bet.status,
             selections: (bet.selections || []).map((sel: any) => ({
@@ -371,17 +374,29 @@ export default function MyBets() {
               <p className="font-bold text-foreground text-sm">KSH {bet.stake.toLocaleString()}</p>
             </Card>
             <Card className="bg-secondary/50 border-border p-3">
-              <p className="text-xs text-muted-foreground mb-1">Possible Payout</p>
-              <p className="font-bold text-gold text-sm">KSH {bet.potentialWin.toLocaleString()}</p>
-            </Card>
-            <Card className="bg-secondary/50 border-border p-3">
-              <p className="text-xs text-muted-foreground mb-1">W/L/T</p>
-              <p className="font-bold text-foreground text-sm">
-                {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "won").length}/
-                {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "lost" && getMatchStatus(sel.matchId, sel).status === "finished").length}/
-                {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "pending").length}
+              <p className="text-xs text-muted-foreground mb-1">
+                {betOutcome === "Open" ? "Possible Payout" : betOutcome === "Won" ? "Amount Won" : "Amount Lost"}
+              </p>
+              <p className={`font-bold text-sm ${
+                betOutcome === "Won" 
+                  ? "text-green-500" 
+                  : betOutcome === "Lost"
+                  ? "text-red-500"
+                  : "text-gold"
+              }`}>
+                KSH {(betOutcome === "Won" && bet.amountWon ? bet.amountWon : bet.potentialWin).toLocaleString()}
               </p>
             </Card>
+            {betOutcome === "Open" && (
+              <Card className="bg-secondary/50 border-border p-3">
+                <p className="text-xs text-muted-foreground mb-1">W/L/T</p>
+                <p className="font-bold text-foreground text-sm">
+                  {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "won").length}/
+                  {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "lost" && getMatchStatus(sel.matchId, sel).status === "finished").length}/
+                  {bet.selections.filter(sel => getMatchStatus(sel.matchId, sel).outcome === "pending").length}
+                </p>
+              </Card>
+            )}
           </div>
 
           {/* Cashout Button - REMOVED */}
