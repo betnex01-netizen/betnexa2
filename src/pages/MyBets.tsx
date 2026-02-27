@@ -29,6 +29,8 @@ export default function MyBets() {
   const { user } = useUser();
   const [expandedBetId, setExpandedBetId] = useState<string | null>(null);
   const [liveMinutes, setLiveMinutes] = useState<Record<string, { minute: number; seconds: number }>>({});
+  const [editingSelectionId, setEditingSelectionId] = useState<string | null>(null);
+  const [isUpdatingOutcome, setIsUpdatingOutcome] = useState(false);
 
   // Update live game display times - reads from game state every second
   useEffect(() => {
@@ -170,6 +172,71 @@ export default function MyBets() {
     const allStatuses = b.selections.map(sel => getMatchStatus(sel.matchId, sel).status);
     return allStatuses.every(s => s === "finished");
   });
+
+  // Handle updating selection outcome (admin only)
+  const updateSelectionOutcome = async (betId: string, selectionId: string, newOutcome: 'won' | 'lost') => {
+    if (!user?.isAdmin) {
+      alert('Only admins can edit outcomes');
+      return;
+    }
+
+    setIsUpdatingOutcome(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/admin/bets/${betId}/selections/${selectionId}/outcome`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          outcome: newOutcome,
+          phone: user.phone 
+        })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Update local state - refresh bets from server
+        const refreshResponse = await fetch(`${apiUrl}/api/bets/user?phoneNumber=${encodeURIComponent(user.phone)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        const refreshData = await refreshResponse.json();
+
+        if (refreshData.success && refreshData.bets) {
+          const transformedBets = refreshData.bets.map((bet: any) => ({
+            id: bet.id,
+            betId: bet.bet_id,
+            date: bet.bet_date || new Date().toLocaleDateString(),
+            time: bet.bet_time || new Date().toLocaleTimeString(),
+            createdAt: bet.created_at,
+            stake: parseFloat(bet.stake),
+            potentialWin: parseFloat(bet.potential_win),
+            totalOdds: parseFloat(bet.total_odds),
+            status: bet.status,
+            selections: (bet.selections || []).map((sel: any) => ({
+              matchId: sel.gameRefId || sel.game_id || sel.matchId,
+              match: `${sel.home_team} vs ${sel.away_team}`,
+              type: sel.market_key,
+              market: sel.market_type,
+              odds: parseFloat(sel.odds)
+            }))
+          }));
+
+          setBets(transformedBets);
+          setEditingSelectionId(null);
+          alert('Outcome updated successfully');
+        }
+      } else {
+        alert('Failed to update outcome: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating outcome:', error);
+      alert('Error updating outcome: ' + (error instanceof Error ? error.message : 'Unknown error'));
+    } finally {
+      setIsUpdatingOutcome(false);
+    }
+  };
 
   const activeBets = bets.filter((b) => {
     const outcome = calculateBetOutcome(b);
@@ -392,26 +459,62 @@ export default function MyBets() {
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="px-2 py-1 bg-secondary/50 rounded">
                         <p className="text-muted-foreground mb-1">Outcome</p>
-                        <div className="flex items-center gap-1">
-                          {getMatchStatus(selection.matchId, selection).outcome === "won" && (
-                            <>
-                              <CheckCircle className="h-3 w-3 text-green-500" />
-                              <p className="font-bold text-green-500 text-xs">Won</p>
-                            </>
-                          )}
-                          {getMatchStatus(selection.matchId, selection).outcome === "lost" && getMatchStatus(selection.matchId, selection).status === "finished" && (
-                            <>
-                              <XCircle className="h-3 w-3 text-red-500" />
-                              <p className="font-bold text-red-500 text-xs">Lost</p>
-                            </>
-                          )}
-                          {getMatchStatus(selection.matchId, selection).outcome === "pending" && (
-                            <>
-                              <AlertCircle className="h-3 w-3 text-yellow-500" />
-                              <p className="font-bold text-yellow-500 text-xs">Pending</p>
-                            </>
-                          )}
-                        </div>
+                        {editingSelectionId === selection.matchId ? (
+                          <div className="flex gap-1 flex-col">
+                            <button
+                              onClick={() => updateSelectionOutcome(bet.id, selection.matchId, 'won')}
+                              disabled={isUpdatingOutcome}
+                              className="text-[9px] px-1 py-0.5 bg-green-500/20 text-green-500 rounded hover:bg-green-500/30 disabled:opacity-50"
+                            >
+                              Mark Won
+                            </button>
+                            <button
+                              onClick={() => updateSelectionOutcome(bet.id, selection.matchId, 'lost')}
+                              disabled={isUpdatingOutcome}
+                              className="text-[9px] px-1 py-0.5 bg-red-500/20 text-red-500 rounded hover:bg-red-500/30 disabled:opacity-50"
+                            >
+                              Mark Lost
+                            </button>
+                            <button
+                              onClick={() => setEditingSelectionId(null)}
+                              disabled={isUpdatingOutcome}
+                              className="text-[9px] px-1 py-0.5 bg-muted/50 text-muted-foreground rounded hover:bg-muted disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 justify-between">
+                            <div className="flex items-center gap-1">
+                              {getMatchStatus(selection.matchId, selection).outcome === "won" && (
+                                <>
+                                  <CheckCircle className="h-3 w-3 text-green-500" />
+                                  <p className="font-bold text-green-500 text-xs">Won</p>
+                                </>
+                              )}
+                              {getMatchStatus(selection.matchId, selection).outcome === "lost" && getMatchStatus(selection.matchId, selection).status === "finished" && (
+                                <>
+                                  <XCircle className="h-3 w-3 text-red-500" />
+                                  <p className="font-bold text-red-500 text-xs">Lost</p>
+                                </>
+                              )}
+                              {getMatchStatus(selection.matchId, selection).outcome === "pending" && (
+                                <>
+                                  <AlertCircle className="h-3 w-3 text-yellow-500" />
+                                  <p className="font-bold text-yellow-500 text-xs">Pending</p>
+                                </>
+                              )}
+                            </div>
+                            {user?.isAdmin && (
+                              <button
+                                onClick={() => setEditingSelectionId(selection.matchId)}
+                                className="text-[9px] text-primary hover:underline"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div className="px-2 py-1 bg-secondary/50 rounded">

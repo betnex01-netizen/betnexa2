@@ -1647,4 +1647,139 @@ router.get('/payments', checkAdmin, async (req, res) => {
   }
 });
 
+// PUT: Edit single match outcome in a multibet
+router.put('/bets/:betId/selections/:selectionId/outcome', checkAdmin, async (req, res) => {
+  try {
+    const { betId, selectionId } = req.params;
+    const { outcome } = req.body; // 'won' or 'lost'
+
+    console.log(`\n✏️  [PUT /api/admin/bets/${betId}/selections/${selectionId}/outcome] Editing match outcome`);
+    console.log(`   New outcome: ${outcome}`);
+
+    if (!outcome || !['won', 'lost', 'pending'].includes(outcome)) {
+      console.error('❌ Invalid outcome:', outcome);
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid outcome - must be "won", "lost", or "pending"' 
+      });
+    }
+
+    // Get the bet selection
+    const { data: selection, error: selError } = await supabase
+      .from('bet_selections')
+      .select('*')
+      .eq('id', selectionId)
+      .single();
+
+    if (selError || !selection) {
+      console.error('❌ Selection not found:', selectionId);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Bet selection not found' 
+      });
+    }
+
+    console.log(`✅ Found selection:`, selection.id);
+
+    // Update the selection outcome
+    const { data: updatedSelection, error: updateError } = await supabase
+      .from('bet_selections')
+      .update({ outcome })
+      .eq('id', selectionId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Error updating selection outcome:', updateError.message);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to update outcome',
+        details: updateError.message
+      });
+    }
+
+    console.log(`✅ Selection outcome updated to: ${outcome}`);
+
+    // Now check if all selections are finished and determine overall bet outcome
+    // Get all selections for this bet
+    const { data: allSelections } = await supabase
+      .from('bet_selections')
+      .select('*')
+      .eq('bet_id', selection.bet_id);
+
+    if (allSelections && allSelections.length > 0) {
+      // Check if any selection is lost - if so, bet is lost
+      const hasLostSelection = allSelections.some(sel => sel.outcome === 'lost');
+      
+      // Check if all selections are not pending
+      const allFinished = allSelections.every(sel => sel.outcome !== 'pending');
+      
+      // Check if all selections are won
+      const allWon = allSelections.every(sel => sel.outcome === 'won');
+
+      let newBetStatus = 'Open'; // default
+
+      if (hasLostSelection) {
+        newBetStatus = 'Lost';
+      } else if (allFinished && allWon) {
+        newBetStatus = 'Won';
+      } else if (allFinished && !allWon) {
+        newBetStatus = 'Lost';
+      }
+
+      console.log(`   Calculated new bet status: ${newBetStatus}`);
+      console.log(`   - Has lost selection: ${hasLostSelection}`);
+      console.log(`   - All finished: ${allFinished}`);
+      console.log(`   - All won: ${allWon}`);
+
+      // Update bet status accordingly
+      if (newBetStatus !== 'Open') {
+        const { error: betUpdateError } = await supabase
+          .from('bets')
+          .update({ 
+            status: newBetStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', selection.bet_id);
+
+        if (betUpdateError) {
+          console.warn('⚠️  Could not update bet status:', betUpdateError.message);
+          // Continue anyway - selection was updated
+        } else {
+          console.log(`✅ Bet status automatically updated to: ${newBetStatus}`);
+        }
+      }
+    }
+
+    // Log admin action
+    try {
+      if (req.user.id && req.user.id !== 'unknown') {
+        await supabase.from('admin_logs').insert([{
+          admin_id: req.user.id,
+          action: 'edit_selection_outcome',
+          target_type: 'bet_selection',
+          target_id: selectionId,
+          changes: { outcome },
+          description: `Edited selection outcome to: ${outcome}`,
+        }]);
+      }
+    } catch (logError) {
+      console.warn('⚠️ Failed to log admin action:', logError.message);
+    }
+
+    res.json({ 
+      success: true, 
+      selection: updatedSelection,
+      message: `Selection outcome updated to ${outcome}`
+    });
+  } catch (error) {
+    console.error('❌ Edit selection outcome error:', error.message);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to edit selection outcome', 
+      details: error.message 
+    });
+  }
+});
+
 module.exports = router;

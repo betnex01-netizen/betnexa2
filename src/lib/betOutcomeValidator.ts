@@ -11,11 +11,24 @@ export function validateBetOutcome(
   if (selectionType === "draw") return homeScore === awayScore;
   if (selectionType === "away") return awayScore > homeScore;
 
-  // Correct Score Market (cs43 means 4-3)
-  if (selectionType.startsWith("cs") && selectionType.length === 4) {
-    const expectedHome = parseInt(selectionType[2]);
-    const expectedAway = parseInt(selectionType[3]);
-    return homeScore === expectedHome && awayScore === expectedAway;
+  // Correct Score Market (cs43 or cs-43 or CS-43 means 4-3)
+  // Handle multiple formats: cs31, CS31, cs-31, CS-31
+  const lowerType = selectionType.toLowerCase();
+  if (lowerType.startsWith("cs")) {
+    // Extract the score digits from any format
+    let scoreStr = '';
+    if (lowerType.includes('-')) {
+      scoreStr = lowerType.replace('cs-', '');
+    } else {
+      scoreStr = lowerType.substring(2); // Remove 'cs' prefix
+    }
+    // Extract first two digits
+    const digits = scoreStr.match(/\d/g);
+    if (digits && digits.length >= 2) {
+      const expectedHome = parseInt(digits[0]);
+      const expectedAway = parseInt(digits[1]);
+      return homeScore === expectedHome && awayScore === expectedAway;
+    }
   }
 
   // BTTS Market
