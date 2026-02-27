@@ -27,11 +27,19 @@ export function getMarketName(market: string): string {
 }
 
 export function getPickLabel(type: string): string {
-  // Correct Score (cs43 -> 4:3)
-  if (type.startsWith('cs') && type.length === 4) {
-    const homeScore = type[2];
-    const awayScore = type[3];
-    return `${homeScore}:${awayScore}`;
+  // Correct Score (cs31 -> 3:1 OR CS-31 -> 3:1)
+  if ((type.toLowerCase().startsWith('cs') && type.length === 4) || type.match(/^CS-\d\d$/)) {
+    let scoreStr = '';
+    if (type.includes('-')) {
+      // Handle "CS-31" format
+      scoreStr = type.split('-')[1];
+    } else {
+      // Handle "cs31" format
+      scoreStr = type.substring(2);
+    }
+    if (scoreStr.length === 2) {
+      return `${scoreStr[0]}:${scoreStr[1]}`;
+    }
   }
   
   // 1X2

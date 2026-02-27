@@ -361,7 +361,7 @@ export default function MyBets() {
                       <div>
                         <p className="text-xs text-muted-foreground mb-1">Pick</p>
                         <p className="font-bold text-primary">
-                          {getPickLabel(selection.type)} @ {selection.odds}
+                          {getPickLabel(selection.type)} @ {selection.odds.toFixed(2)}
                         </p>
                       </div>
                     </div>
