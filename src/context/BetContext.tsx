@@ -27,7 +27,7 @@ interface BetContextType {
   deposit: (amount: number) => void;
   withdraw: (amount: number) => boolean;
   placeBet: (betAmount: number) => boolean;
-  updateBetStatus: (betId: string, status: PlacedBet["status"], amountWon?: number) => void;
+  updateBetStatus: (betId: string, status: PlacedBet["status"], amountWon?: number) => Promise<{ success: boolean; error?: string; data?: any }>;
   setBalance: (amount: number) => void;
   syncBalance: (newBalance: number) => void;
   setBets: (bets: PlacedBet[]) => void;
@@ -96,7 +96,8 @@ export function BetProvider({ children }: { children: ReactNode }) {
     return false;
   };
 
-  const updateBetStatus = (betId: string, status: PlacedBet["status"], amountWon?: number) => {
+  const updateBetStatus = async (betId: string, status: PlacedBet["status"], amountWon?: number) => {
+    // Update local state first
     setBets((prev) =>
       prev.map((bet) =>
         bet.id === betId
@@ -112,6 +113,45 @@ export function BetProvider({ children }: { children: ReactNode }) {
     // If bet won, add winnings to balance
     if (status === "Won" && amountWon) {
       setBalance((prev) => prev + amountWon);
+    }
+
+    // Now sync with backend database
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
+      const response = await fetch(`${apiUrl}/api/bets/${betId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status,
+          amountWon: amountWon || 0
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('❌ Failed to update bet status in database:', data.error);
+        return {
+          success: false,
+          error: data.error || 'Failed to update bet status'
+        };
+      }
+
+      console.log(`✅ Bet ${betId} status updated to ${status} in database`);
+      if (status === 'Won') {
+        console.log(`✅ Amount won KSH ${amountWon} recorded in database`);
+      }
+
+      return {
+        success: true,
+        data
+      };
+    } catch (error) {
+      console.error('❌ Error syncing bet status to database:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
     }
   };
 

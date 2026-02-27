@@ -800,7 +800,7 @@ const AdminPortal = () => {
     }
   };
 
-  const settleBetBySelections = (betId: string) => {
+  const settleBetBySelections = async (betId: string) => {
     const outcomes = selectionOutcomes[betId];
     if (!outcomes || Object.keys(outcomes).length === 0) return;
 
@@ -812,11 +812,25 @@ const AdminPortal = () => {
     if (won === total && lost === 0) {
       const bet = bets.find(b => b.id === betId);
       if (bet) {
-        updateBetStatus(betId, "Won", bet.potentialWin);
+        const result = await updateBetStatus(betId, "Won", bet.potentialWin);
+        if (result.success) {
+          console.log(`✅ Bet ${betId} marked as Won with KSH ${bet.potentialWin}`);
+        } else {
+          console.error(`❌ Failed to mark bet as Won:`, result.error);
+          alert(`Failed to settle bet: ${result.error}`);
+          return;
+        }
       }
     } else {
       // If any selection is lost, the bet is lost
-      updateBetStatus(betId, "Lost", 0);
+      const result = await updateBetStatus(betId, "Lost", 0);
+      if (result.success) {
+        console.log(`✅ Bet ${betId} marked as Lost`);
+      } else {
+        console.error(`❌ Failed to mark bet as Lost:`, result.error);
+        alert(`Failed to settle bet: ${result.error}`);
+        return;
+      }
     }
 
     // Clear the outcomes after settling
@@ -1957,8 +1971,13 @@ const AdminPortal = () => {
                           <Button
                             size="sm"
                             className="flex-1 bg-green-500/10 text-green-500 hover:bg-green-500/20"
-                            onClick={() => {
-                              updateBetStatus(bet.id, "Won", bet.potentialWin);
+                            onClick={async () => {
+                              const result = await updateBetStatus(bet.id, "Won", bet.potentialWin);
+                              if (result.success) {
+                                console.log(`✅ Bet marked as Won`);
+                              } else {
+                                alert(`Failed: ${result.error}`);
+                              }
                             }}
                           >
                             <CheckCircle className="mr-1 h-3 w-3" /> Quick: Mark All Won
@@ -1966,8 +1985,13 @@ const AdminPortal = () => {
                           <Button
                             size="sm"
                             className="flex-1 bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                            onClick={() => {
-                              updateBetStatus(bet.id, "Lost", 0);
+                            onClick={async () => {
+                              const result = await updateBetStatus(bet.id, "Lost", 0);
+                              if (result.success) {
+                                console.log(`✅ Bet marked as Lost`);
+                              } else {
+                                alert(`Failed: ${result.error}`);
+                              }
                             }}
                           >
                             <XCircle className="mr-1 h-3 w-3" /> Quick: Mark All Lost
