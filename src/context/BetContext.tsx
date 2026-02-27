@@ -138,8 +138,39 @@ export function BetProvider({ children }: { children: ReactNode }) {
       }
 
       console.log(`✅ Bet ${betId} status updated to ${status} in database`);
-      if (status === 'Won') {
-        console.log(`✅ Amount won KSH ${amountWon} recorded in database`);
+      
+      // If bet won and we have updated user data, sync the balance
+      if (status === 'Won' && data.updatedUser && data.updatedUser.account_balance !== undefined) {
+        const serverBalance = data.updatedUser.account_balance;
+        console.log(`💾 Syncing balance from server: ${serverBalance}`);
+        
+        // Update local balance with server value to ensure consistency
+        setBalance(serverBalance);
+        
+        // Update localStorage user data with new balance
+        try {
+          const savedUser = sessionStorage.getItem('betnexa_user') || localStorage.getItem('betnexa_user');
+          if (savedUser) {
+            const user = JSON.parse(savedUser);
+            user.accountBalance = serverBalance;
+            user.totalWinnings = data.updatedUser.total_winnings || user.totalWinnings || 0;
+            sessionStorage.setItem('betnexa_user', JSON.stringify(user));
+            localStorage.setItem('betnexa_user', JSON.stringify(user));
+            console.log(`✅ localStorage user data updated with new balance: ${serverBalance}`);
+          }
+        } catch (e) {
+          console.warn('⚠️ Could not update localStorage with new balance:', e);
+        }
+
+        // Dispatch event for UserContext to refresh - this ensures all contexts are in sync
+        window.dispatchEvent(new CustomEvent('balance_updated', {
+          detail: {
+            newBalance: serverBalance,
+            totalWinnings: data.updatedUser.total_winnings
+          }
+        }));
+        
+        console.log(`✅ Amount won KSH ${amountWon} added to balance. New balance: KSH ${serverBalance}`);
       }
 
       return {

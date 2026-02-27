@@ -292,10 +292,11 @@ router.put('/:betId/status', async (req, res) => {
     }
 
     // If bet won, add winnings to user balance
+    let updatedUser = null;
     if (status === 'Won' && amountWon && bet.user_id) {
       const { data: user, error: userError } = await supabase
         .from('users')
-        .select('account_balance, total_winnings, id')
+        .select('account_balance, total_winnings, id, phone_number, username')
         .eq('id', bet.user_id)
         .single();
 
@@ -304,14 +305,16 @@ router.put('/:betId/status', async (req, res) => {
         const currentWinnings = user.total_winnings || 0;
         const newWinnings = currentWinnings + parseFloat(amountWon);
 
-        const { error: balanceError } = await supabase
+        const { data: updatedUserData, error: balanceError } = await supabase
           .from('users')
           .update({
             account_balance: newBalance,
             total_winnings: newWinnings,
             updated_at: new Date().toISOString()
           })
-          .eq('id', bet.user_id);
+          .eq('id', bet.user_id)
+          .select()
+          .single();
 
         if (balanceError) {
           console.error('❌ Error updating user balance:', balanceError.message);
@@ -322,6 +325,7 @@ router.put('/:betId/status', async (req, res) => {
           });
         }
 
+        updatedUser = updatedUserData;
         console.log(`✅ User balance updated: ${user.account_balance} → ${newBalance}`);
         console.log(`✅ Total winnings updated: ${currentWinnings} → ${newWinnings}`);
       } else if (userError) {
@@ -342,7 +346,8 @@ router.put('/:betId/status', async (req, res) => {
     res.json({
       success: true,
       bet,
-      message: `Bet ${status} and balance updated${status === 'Won' ? ` with KSH ${amountWon} added` : ''}`
+      updatedUser,
+      message: `Bet ${status} and balance updated${status === 'Won' && updatedUser ? ` with KSH ${amountWon} added. New balance: KSH ${updatedUser.account_balance}` : ''}`
     });
   } catch (error) {
     console.error('❌ Update bet status error:', error);

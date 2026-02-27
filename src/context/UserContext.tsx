@@ -392,6 +392,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
     console.log(`⏱️ Running initial refresh for ${userPhone}...`);
     doRefresh();
 
+    // Listen for balance updates from BetContext (e.g., when a bet is settled)
+    const handleBalanceUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      console.log(`💰 UserContext: Detected balance update from BetContext, refreshing user data...`);
+      doRefresh();
+    };
+
+    window.addEventListener('balance_updated', handleBalanceUpdate);
+
     // Then refresh every 15 seconds - only for this specific user
     const refreshInterval = setInterval(() => {
       console.log(`⏱️ Scheduled refresh triggered for ${userPhone}`);
@@ -400,6 +409,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     return () => {
       clearInterval(refreshInterval);
+      window.removeEventListener('balance_updated', handleBalanceUpdate);
       console.log(`⏹️ Stopped periodic refresh for ${userPhone}`);
     };
   }, [isLoggedIn, user, user?.phone, refreshUserData]);

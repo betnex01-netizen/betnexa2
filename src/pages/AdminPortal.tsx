@@ -815,6 +815,9 @@ const AdminPortal = () => {
         const result = await updateBetStatus(betId, "Won", bet.potentialWin);
         if (result.success) {
           console.log(`✅ Bet ${betId} marked as Won with KSH ${bet.potentialWin}`);
+          // Refresh user data to show updated balance
+          console.log('🔄 Refreshing user data to show updated balance');
+          await fetchUsersFromBackend();
         } else {
           console.error(`❌ Failed to mark bet as Won:`, result.error);
           alert(`Failed to settle bet: ${result.error}`);
@@ -826,6 +829,9 @@ const AdminPortal = () => {
       const result = await updateBetStatus(betId, "Lost", 0);
       if (result.success) {
         console.log(`✅ Bet ${betId} marked as Lost`);
+        // Refresh user data after settling
+        console.log('🔄 Refreshing user data after bet settlement');
+        await fetchUsersFromBackend();
       } else {
         console.error(`❌ Failed to mark bet as Lost:`, result.error);
         alert(`Failed to settle bet: ${result.error}`);
@@ -1975,6 +1981,8 @@ const AdminPortal = () => {
                               const result = await updateBetStatus(bet.id, "Won", bet.potentialWin);
                               if (result.success) {
                                 console.log(`✅ Bet marked as Won`);
+                                // Refresh user data to show updated balance
+                                await fetchUsersFromBackend();
                               } else {
                                 alert(`Failed: ${result.error}`);
                               }
@@ -1989,6 +1997,8 @@ const AdminPortal = () => {
                               const result = await updateBetStatus(bet.id, "Lost", 0);
                               if (result.success) {
                                 console.log(`✅ Bet marked as Lost`);
+                                // Refresh user data after settling
+                                await fetchUsersFromBackend();
                               } else {
                                 alert(`Failed: ${result.error}`);
                               }
