@@ -22,6 +22,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
+    console.log(`\n🔐 [POST /api/auth/login] Login attempt for phone: ${phone}`);
+
     // Query Supabase for user by phone
     const { data: user, error } = await supabase
       .from('users')
@@ -30,6 +32,7 @@ router.post('/login', async (req, res) => {
       .single();
 
     if (error || !user) {
+      console.error(`❌ User not found: ${phone}`);
       return res.status(401).json({
         success: false,
         message: 'User not found'
@@ -38,11 +41,17 @@ router.post('/login', async (req, res) => {
 
     // Check password
     if (user.password !== password) {
+      console.error(`❌ Invalid password for user: ${phone}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid password'
       });
     }
+
+    console.log(`✅ Login successful for ${phone}`);
+    console.log(`   Balance from DB: KSH ${user.account_balance}`);
+    console.log(`   Total Winnings from DB: KSH ${user.total_winnings}`);
+    console.log(`   Total Bets: ${user.total_bets}`);
 
     // Return user data
     return res.json({

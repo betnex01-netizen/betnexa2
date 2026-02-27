@@ -141,6 +141,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   const login = async (userData: UserProfile) => {
     try {
+      console.log(`\n🔐 [login] Setting user session`);
+      console.log(`   Username: ${userData.username}`);
+      console.log(`   Phone: ${userData.phone}`);
+      console.log(`   Balance: KSH ${userData.accountBalance}`);
+      console.log(`   Total Winnings: KSH ${userData.totalWinnings}`);
+      
       // Create session for this device
       const session = await sessionService.createSession(userData.id);
       
@@ -156,6 +162,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('betnexa_session', JSON.stringify(session));
         
         console.log(`✅ Login successful on device: ${session.deviceName}`);
+        console.log(`✅ Balance stored in localStorage: KSH ${userData.accountBalance}`);
         console.log(`✅ Session data saved to sessionStorage (per-tab isolation)`);
       } else {
         throw new Error('Failed to create session');
@@ -200,6 +207,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   // Login with backend API
   const loginWithSupabase = async (phone: string, password: string): Promise<UserProfile | null> => {
     try {
+      console.log(`\n🔐 [loginWithSupabase] Attempting login for: ${phone}`);
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app'}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -211,9 +219,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
       const data = await response.json();
       
       if (!response.ok || !data.success) {
-        console.error('Login failed:', data.message);
+        console.error('❌ Login failed:', data.message);
         return null;
       }
+
+      console.log(`✅ Login successful, received user data from server`);
+      console.log(`   Phone: ${data.user.phone}`);
+      console.log(`   Balance from DB: KSH ${data.user.accountBalance}`);
+      console.log(`   Total Winnings from DB: KSH ${data.user.totalWinnings}`);
 
       // Create session for this device
       await login(data.user);
