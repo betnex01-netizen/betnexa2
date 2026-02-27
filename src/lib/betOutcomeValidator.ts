@@ -31,11 +31,12 @@ export function validateBetOutcome(
     }
   }
 
-  // BTTS Market
-  if (selectionType === "bttsYes") {
+  // BTTS Market - Handle both formats: bttsYes, btts-yes, etc.
+  const lowerType2 = selectionType.toLowerCase();
+  if (lowerType2 === "bttsyes" || lowerType2 === "btts-yes") {
     return homeScore > 0 && awayScore > 0;
   }
-  if (selectionType === "bttsNo") {
+  if (lowerType2 === "bttsno" || lowerType2 === "btts-no") {
     return homeScore === 0 || awayScore === 0;
   }
 
@@ -45,14 +46,17 @@ export function validateBetOutcome(
   if (selectionType === "over15") return homeScore + awayScore > 1.5;
   if (selectionType === "under15") return homeScore + awayScore < 1.5;
 
-  // Double Chance Markets
-  if (selectionType === "dcHomeOrDraw" || selectionType === "doubleChanceHomeOrDraw") {
+  // Double Chance Markets - Handle all format variations
+  // 1X (Home/Draw): dc-hd or dchomedordraw or doubleChanceHomeOrDraw or dc-1x
+  if (lowerType2 === "dchomedordraw" || lowerType2 === "doubleChanceHomeOrDraw" || lowerType2 === "dc-hd" || lowerType2 === "dc-1x") {
     return homeScore >= awayScore; // Home win or draw
   }
-  if (selectionType === "dcAwayOrDraw" || selectionType === "doubleChanceAwayOrDraw") {
+  // X2 (Draw/Away): dc-ad or dcawayordraw or doubleChanceAwayOrDraw or dc-x2
+  if (lowerType2 === "dcawayordraw" || lowerType2 === "doubleChanceAwayOrDraw" || lowerType2 === "dc-ad" || lowerType2 === "dc-x2") {
     return awayScore >= homeScore; // Away win or draw
   }
-  if (selectionType === "dcHomeOrAway" || selectionType === "doubleChanceHomeOrAway") {
+  // 12 (Home/Away): dc-ha or dchomeoraway or doubleChanceHomeOrAway or dc-12
+  if (lowerType2 === "dchomeoraway" || lowerType2 === "doubleChanceHomeOrAway" || lowerType2 === "dc-ha" || lowerType2 === "dc-12") {
     return homeScore !== awayScore; // Any win (not draw)
   }
 

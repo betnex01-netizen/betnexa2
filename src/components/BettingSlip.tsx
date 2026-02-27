@@ -27,17 +27,16 @@ export function getMarketName(market: string): string {
 }
 
 export function getPickLabel(type: string): string {
-  // Correct Score: cs31 OR CS31 OR cs-31 OR CS-31 -> returns 3:1
   const lowerType = type.toLowerCase();
+  
+  // Correct Score: cs31 OR CS31 OR cs-31 OR CS-31 -> returns 3:1
   if (lowerType.startsWith('cs')) {
-    // Extract digits after 'cs' or 'cs-'
     let scoreStr = '';
     if (lowerType.includes('-')) {
       scoreStr = lowerType.replace('cs-', '').replace('-', '');
     } else {
-      scoreStr = lowerType.substring(2); // Remove 'cs' prefix
+      scoreStr = lowerType.substring(2);
     }
-    // If we have exactly 2 digits, format as X:Y
     if (scoreStr && scoreStr.length >= 2) {
       const digits = scoreStr.match(/\d/g);
       if (digits && digits.length >= 2) {
@@ -46,15 +45,23 @@ export function getPickLabel(type: string): string {
     }
   }
   
+  // BTTS: Handle both bttsYes and btts-yes formats
+  if (lowerType === 'bttsyes' || lowerType === 'btts-yes' || lowerType === 'bttsyes') return 'YES';
+  if (lowerType === 'bttsno' || lowerType === 'btts-no' || lowerType === 'bttsno') return 'NO';
+  
   // 1X2
   if (type === 'home') return 'Home Win';
   if (type === 'draw') return 'Draw';
   if (type === 'away') return 'Away Win';
   
-  // BTTS
-  if (type === 'bttsYes') return 'YES';
-  if (type === 'bttsNo') return 'NO';
-  
+  // Double Chance: Handle multiple formats and return short codes
+  // 1X = Home/Draw (home win or draw)
+  if (lowerType === 'dchomedordraw' || lowerType === 'doubleChanceHomeOrDraw' || lowerType === 'dc-hd' || lowerType === 'dc-1x') return '1X';
+  // X2 = Draw/Away (draw or away win)
+  if (lowerType === 'dcawayordraw' || lowerType === 'doubleChanceAwayOrDraw' || lowerType === 'dc-ad' || lowerType === 'dc-x2') return 'X2';
+  // 12 = Home/Away (any win, not draw)
+  if (lowerType === 'dchomeoraway' || lowerType === 'doubleChanceHomeOrAway' || lowerType === 'dc-ha' || lowerType === 'dc-12') return '12';
+
   // Over/Under
   if (type === 'over25') return 'Over 2.5';
   if (type === 'under25') return 'Under 2.5';
