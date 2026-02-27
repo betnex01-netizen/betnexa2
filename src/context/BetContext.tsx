@@ -97,6 +97,11 @@ export function BetProvider({ children }: { children: ReactNode }) {
   };
 
   const updateBetStatus = async (betId: string, status: PlacedBet["status"], amountWon?: number) => {
+    console.log(`\n🔄 [BetContext.updateBetStatus] Starting update`);
+    console.log(`   Bet ID: ${betId}`);
+    console.log(`   New Status: ${status}`);
+    console.log(`   Amount Won: ${amountWon || 'N/A'}`);
+    
     // Update local state first
     setBets((prev) =>
       prev.map((bet) =>
@@ -109,16 +114,23 @@ export function BetProvider({ children }: { children: ReactNode }) {
           : bet
       )
     );
+    console.log(`   ✓ Local state updated`);
 
     // If bet won, add winnings to balance
     if (status === "Won" && amountWon) {
       setBalance((prev) => prev + amountWon);
+      console.log(`   ✓ Local balance updated with KSH ${amountWon}`);
     }
 
     // Now sync with backend database
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'https://server-tau-puce.vercel.app';
-      const response = await fetch(`${apiUrl}/api/bets/${betId}/status`, {
+      const endpoint = `${apiUrl}/api/bets/${betId}/status`;
+      
+      console.log(`   📡 Calling API: PUT ${endpoint}`);
+      console.log(`   📦 Request body: { status: "${status}", amountWon: ${amountWon || 0} }`);
+      
+      const response = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -127,22 +139,25 @@ export function BetProvider({ children }: { children: ReactNode }) {
         })
       });
 
+      console.log(`   📥 API Response status: ${response.status}`);
       const data = await response.json();
+      console.log(`   📥 API Response data:`, data);
 
       if (!response.ok) {
-        console.error('❌ Failed to update bet status in database:', data.error);
+        console.error(`   ❌ API returned error: ${data.error}`);
         return {
           success: false,
           error: data.error || 'Failed to update bet status'
         };
       }
 
-      console.log(`✅ Bet ${betId} status updated to ${status} in database`);
+      console.log(`   ✅ Bet ${betId} status updated to ${status} in database`);
       
       // If bet won and we have updated user data, sync the balance
       if (status === 'Won' && data.updatedUser && data.updatedUser.account_balance !== undefined) {
         const serverBalance = data.updatedUser.account_balance;
-        console.log(`💾 Syncing balance from server: ${serverBalance}`);
+        console.log(`   💾 Server returned updated balance: KSH ${serverBalance}`);
+        console.log(`   ✓ Syncing server balance to local state`);
         
         // Update local balance with server value to ensure consistency
         setBalance(serverBalance);
@@ -156,10 +171,10 @@ export function BetProvider({ children }: { children: ReactNode }) {
             user.totalWinnings = data.updatedUser.total_winnings || user.totalWinnings || 0;
             sessionStorage.setItem('betnexa_user', JSON.stringify(user));
             localStorage.setItem('betnexa_user', JSON.stringify(user));
-            console.log(`✅ localStorage user data updated with new balance: ${serverBalance}`);
+            console.log(`   ✅ localStorage updated with new balance: KSH ${serverBalance}`);
           }
         } catch (e) {
-          console.warn('⚠️ Could not update localStorage with new balance:', e);
+          console.warn('   ⚠️ Could not update localStorage:', e);
         }
 
         // Dispatch event for UserContext to refresh - this ensures all contexts are in sync
@@ -169,8 +184,9 @@ export function BetProvider({ children }: { children: ReactNode }) {
             totalWinnings: data.updatedUser.total_winnings
           }
         }));
+        console.log(`   📢 Dispatched balance_updated event`);
         
-        console.log(`✅ Amount won KSH ${amountWon} added to balance. New balance: KSH ${serverBalance}`);
+        console.log(`   ✅ Amount won KSH ${amountWon} added to balance. New balance: KSH ${serverBalance}`);
       }
 
       return {
@@ -178,7 +194,7 @@ export function BetProvider({ children }: { children: ReactNode }) {
         data
       };
     } catch (error) {
-      console.error('❌ Error syncing bet status to database:', error);
+      console.error('   ❌ Error syncing bet status to database:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

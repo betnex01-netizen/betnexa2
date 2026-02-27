@@ -171,7 +171,7 @@ export function BettingSlip({ items, onRemove, onClear }: BettingSlipProps) {
       // Add bet to local context
       const now = new Date();
       const newBet: PlacedBet = {
-        id: `bet_${Date.now()}`,
+        id: data.bet.id,  // Use actual database UUID
         betId: data.bet.betId,
         date: `${now.getDate()}/${now.getMonth() + 1}`,
         time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`,

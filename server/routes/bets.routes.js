@@ -142,6 +142,8 @@ router.post('/place', async (req, res) => {
     }
 
     console.log('✅ Bet placed successfully:', betId);
+    console.log('   Database ID (UUID):', bet.id);
+    console.log('   User Balance After: KSH', newBalance);
 
     res.json({
       success: true,
@@ -254,7 +256,7 @@ router.put('/:betId/status', async (req, res) => {
     const { status, amountWon } = req.body;
 
     console.log('\n⚙️  [PUT /api/bets/:betId/status] Updating bet status');
-    console.log('   Bet ID:', betId);
+    console.log('   Bet ID (UUID):', betId);
     console.log('   Status:', status);
     console.log('   Amount Won:', amountWon);
 
@@ -269,6 +271,8 @@ router.put('/:betId/status', async (req, res) => {
     if (status === 'Won' && amountWon) {
       updateData.amount_won = parseFloat(amountWon);
     }
+
+    console.log('   📋 Updating bet with:', updateData);
 
     // Update bet status
     const { data: bet, error: updateError } = await supabase
@@ -287,6 +291,8 @@ router.put('/:betId/status', async (req, res) => {
     }
 
     console.log('✅ Bet status updated to:', status);
+    console.log('   Updated bet:', bet);
+    
     if (status === 'Won') {
       console.log('✅ Amount won recorded:', amountWon);
     }
@@ -294,54 +300,67 @@ router.put('/:betId/status', async (req, res) => {
     // If bet won, add winnings to user balance
     let updatedUser = null;
     if (status === 'Won' && amountWon && bet.user_id) {
+      console.log(`\n💰 Processing winnings for user ID: ${bet.user_id}`);
+      
       const { data: user, error: userError } = await supabase
         .from('users')
         .select('account_balance, total_winnings, id, phone_number, username')
         .eq('id', bet.user_id)
         .single();
 
-      if (user) {
-        const newBalance = user.account_balance + parseFloat(amountWon);
-        const currentWinnings = user.total_winnings || 0;
-        const newWinnings = currentWinnings + parseFloat(amountWon);
-
-        const { data: updatedUserData, error: balanceError } = await supabase
-          .from('users')
-          .update({
-            account_balance: newBalance,
-            total_winnings: newWinnings,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', bet.user_id)
-          .select()
-          .single();
-
-        if (balanceError) {
-          console.error('❌ Error updating user balance:', balanceError.message);
-          return res.status(500).json({
-            success: false,
-            error: 'Failed to update user balance',
-            details: balanceError.message
-          });
-        }
-
-        updatedUser = updatedUserData;
-        console.log(`✅ User balance updated: ${user.account_balance} → ${newBalance}`);
-        console.log(`✅ Total winnings updated: ${currentWinnings} → ${newWinnings}`);
-      } else if (userError) {
-        console.error('❌ Error fetching user:', userError.message);
+      if (!user) {
+        console.error('❌ Error fetching user:', userError?.message);
         return res.status(500).json({
           success: false,
           error: 'Failed to fetch user',
-          details: userError.message
+          details: userError?.message
         });
       }
+
+      console.log(`   Current user balance: KSH ${user.account_balance}`);
+      console.log(`   Current total winnings: KSH ${user.total_winnings || 0}`);
+      
+      const newBalance = user.account_balance + parseFloat(amountWon);
+      const currentWinnings = user.total_winnings || 0;
+      const newWinnings = currentWinnings + parseFloat(amountWon);
+
+      console.log(`   New balance will be: KSH ${newBalance}`);
+      console.log(`   New total winnings will be: KSH ${newWinnings}`);
+      console.log('   📝 Updating user in database...');
+
+      const { data: updatedUserData, error: balanceError } = await supabase
+        .from('users')
+        .update({
+          account_balance: newBalance,
+          total_winnings: newWinnings,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', bet.user_id)
+        .select()
+        .single();
+
+      if (balanceError) {
+        console.error('❌ Error updating user balance:', balanceError.message);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to update user balance',
+          details: balanceError.message
+        });
+      }
+
+      updatedUser = updatedUserData;
+      console.log(`✅ User balance updated successfully`);
+      console.log(`   Phone: ${updatedUser.phone_number}`);
+      console.log(`   New balance: KSH ${updatedUser.account_balance}`);
+      console.log(`   New total winnings: KSH ${updatedUser.total_winnings}`);
     }
 
     // If bet lost, no winnings to add
     if (status === 'Lost') {
       console.log('❌ Bet marked as Lost - no winnings added');
     }
+
+    console.log('\n✅ Response sent successfully');
 
     res.json({
       success: true,
