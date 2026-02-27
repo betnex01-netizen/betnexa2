@@ -98,7 +98,6 @@ export default function MyBets() {
               odds: parseFloat(sel.odds)
             }))
           }));
-          }));
 
           setBets(transformedBets);
           console.log(`✅ Loaded ${transformedBets.length} bets from server`);
