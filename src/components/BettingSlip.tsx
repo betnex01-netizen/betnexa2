@@ -27,18 +27,22 @@ export function getMarketName(market: string): string {
 }
 
 export function getPickLabel(type: string): string {
-  // Correct Score (cs31 -> 3:1 OR CS-31 -> 3:1)
-  if ((type.toLowerCase().startsWith('cs') && type.length === 4) || type.match(/^CS-\d\d$/)) {
+  // Correct Score: cs31 OR CS31 OR cs-31 OR CS-31 -> returns 3:1
+  const lowerType = type.toLowerCase();
+  if (lowerType.startsWith('cs')) {
+    // Extract digits after 'cs' or 'cs-'
     let scoreStr = '';
-    if (type.includes('-')) {
-      // Handle "CS-31" format
-      scoreStr = type.split('-')[1];
+    if (lowerType.includes('-')) {
+      scoreStr = lowerType.replace('cs-', '').replace('-', '');
     } else {
-      // Handle "cs31" format
-      scoreStr = type.substring(2);
+      scoreStr = lowerType.substring(2); // Remove 'cs' prefix
     }
-    if (scoreStr.length === 2) {
-      return `${scoreStr[0]}:${scoreStr[1]}`;
+    // If we have exactly 2 digits, format as X:Y
+    if (scoreStr && scoreStr.length >= 2) {
+      const digits = scoreStr.match(/\d/g);
+      if (digits && digits.length >= 2) {
+        return `${digits[0]}:${digits[1]}`;
+      }
     }
   }
   
