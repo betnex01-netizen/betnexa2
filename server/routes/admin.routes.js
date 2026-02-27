@@ -86,6 +86,229 @@ function determineMarketType(key) {
   return '1X2';
 }
 
+// Helper function to evaluate a bet selection outcome based on game result
+function evaluateSelectionOutcome(selection, game) {
+  const { market_key, market_type } = selection;
+  const { home_score, away_score } = game;
+
+  // If scores are not set, outcome is pending
+  if (home_score === null || away_score === null) {
+    return 'pending';
+  }
+
+  const totalGoals = home_score + away_score;
+  const homeWin = home_score > away_score;
+  const awayWin = away_score > home_score;
+  const draw = home_score === away_score;
+
+  // Helper function to determine if both teams scored
+  const btts = home_score > 0 && away_score > 0;
+
+  switch (market_type) {
+    case '1X2':
+      // Standard Win/Draw/Loss
+      if (market_key === 'home' || market_key === '1') return homeWin ? 'won' : 'lost';
+      if (market_key === 'draw' || market_key === 'X') return draw ? 'won' : 'lost';
+      if (market_key === 'away' || market_key === '2') return awayWin ? 'won' : 'lost';
+      break;
+
+    case 'BTTS':
+      // Both Teams To Score
+      if (market_key === 'bttsYes') return btts ? 'won' : 'lost';
+      if (market_key === 'bttsNo') return !btts ? 'won' : 'lost';
+      break;
+
+    case 'O/U':
+      // Over/Under
+      if (market_key === 'over25') return totalGoals > 2.5 ? 'won' : 'lost';
+      if (market_key === 'under25') return totalGoals < 2.5 ? 'won' : 'lost';
+      if (market_key === 'over15') return totalGoals > 1.5 ? 'won' : 'lost';
+      if (market_key === 'under15') return totalGoals < 1.5 ? 'won' : 'lost';
+      if (market_key === 'over35') return totalGoals > 3.5 ? 'won' : 'lost';
+      if (market_key === 'under35') return totalGoals < 3.5 ? 'won' : 'lost';
+      break;
+
+    case 'DC':
+      // Double Chance
+      if (market_key === 'doubleChanceHomeOrDraw') return (homeWin || draw) ? 'won' : 'lost';
+      if (market_key === 'doubleChanceAwayOrDraw') return (awayWin || draw) ? 'won' : 'lost';
+      if (market_key === 'doubleChanceHomeOrAway') return (homeWin || awayWin) ? 'won' : 'lost';
+      break;
+
+    case 'CS':
+      // Correct Score (format: cs10, cs21, etc.)
+      const match = market_key.match(/^cs(\d)(\d)$/);
+      if (match) {
+        const expectedHome = parseInt(match[1]);
+        const expectedAway = parseInt(match[2]);
+        return (home_score === expectedHome && away_score === expectedAway) ? 'won' : 'lost';
+      }
+      break;
+
+    case 'HT/FT':
+      // Half Time / Full Time - would need halftime score, defaulting to pending for now
+      return 'pending';
+  }
+
+  return 'pending';
+}
+
+// Helper function to settle affected bets after a game score update
+async function settleBetsForGame(gameId, game) {
+  try {
+    console.log(`\n🏆 [SETTLEMENT] Processing bets for game: ${gameId}`);
+
+    // Find all open bets with selections related to this game
+    const { data: selections, error: selectionsError } = await supabase
+      .from('bet_selections')
+      .select('*, bets!inner(id, user_id, stake, potential_win, status)')
+      .eq('game_id', gameId);
+
+    if (selectionsError) {
+      console.error('❌ Error fetching selections:', selectionsError.message);
+      return;
+    }
+
+    if (!selections || selections.length === 0) {
+      console.log('   ℹ️ No selections found for this game');
+      return;
+    }
+
+    console.log(`   Found ${selections.length} selections to evaluate`);
+
+    // Group selections by bet ID
+    const betSelections = {};
+    selections.forEach(sel => {
+      const betId = sel.bet_id;
+      if (!betSelections[betId]) {
+        betSelections[betId] = {
+          bets_data: sel.bets,
+          selections: []
+        };
+      }
+      betSelections[betId].selections.push(sel);
+    });
+
+    // Process each bet
+    for (const [betId, betData] of Object.entries(betSelections)) {
+      const bet = betData.bets_data;
+      if (bet.status !== 'Open') {
+        continue; // Skip already settled bets
+      }
+
+      const betSelections = betData.selections;
+      console.log(`\n   🎯 Processing bet ${betId.substring(0, 8)}... (${betSelections.length} selections)`);
+
+      // Evaluate each selection
+      let allFinished = true;
+      let allWon = true;
+      let hasLost = false;
+      const updatesToApply = [];
+
+      for (const selection of betSelections) {
+        const outcome = evaluateSelectionOutcome(selection, game);
+        console.log(`      Selection ${selection.id.substring(0, 8)}... market:${selection.market_key} => ${outcome}`);
+
+        if (outcome !== 'pending') {
+          updatesToApply.push({
+            id: selection.id,
+            outcome: outcome
+          });
+
+          if (outcome === 'lost') {
+            hasLost = true;
+            allWon = false;
+          }
+        } else {
+          allFinished = false;
+        }
+      }
+
+      // Apply selection outcome updates
+      for (const update of updatesToApply) {
+        const { error: updateError } = await supabase
+          .from('bet_selections')
+          .update({ outcome: update.outcome, updated_at: new Date().toISOString() })
+          .eq('id', update.id);
+
+        if (updateError) {
+          console.warn('   ⚠️ Error updating selection outcome:', updateError.message);
+        }
+      }
+
+      // Determine new bet status
+      let newBetStatus = 'Open';
+      if (hasLost) {
+        newBetStatus = 'Lost';
+      } else if (allFinished && allWon) {
+        newBetStatus = 'Won';
+      }
+
+      console.log(`      New bet status: ${newBetStatus} (allFinished:${allFinished}, allWon:${allWon}, hasLost:${hasLost})`);
+
+      // Update bet status if changed
+      if (newBetStatus !== 'Open' && newBetStatus !== bet.status) {
+        const amountWon = newBetStatus === 'Won' ? bet.potential_win : null;
+        
+        const { error: betUpdateError } = await supabase
+          .from('bets')
+          .update({ 
+            status: newBetStatus,
+            amount_won: amountWon,
+            settled_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', betId);
+
+        if (betUpdateError) {
+          console.error('   ❌ Error updating bet status:', betUpdateError.message);
+          continue;
+        }
+
+        console.log(`      ✅ Bet status updated to ${newBetStatus}`);
+
+        // If bet won, update user balance
+        if (newBetStatus === 'Won' && amountWon && bet.user_id) {
+          console.log(`      💰 Processing winnings: KSH ${amountWon}`);
+          
+          const { data: user, error: userError } = await supabase
+            .from('users')
+            .select('account_balance, total_winnings')
+            .eq('id', bet.user_id)
+            .single();
+
+          if (!user || userError) {
+            console.error('   ❌ Error fetching user:', userError?.message);
+            continue;
+          }
+
+          const newBalance = parseFloat(user.account_balance) + parseFloat(amountWon);
+          const newWinnings = (parseFloat(user.total_winnings) || 0) + parseFloat(amountWon);
+
+          const { error: balanceError } = await supabase
+            .from('users')
+            .update({
+              account_balance: newBalance,
+              total_winnings: newWinnings,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', bet.user_id);
+
+          if (balanceError) {
+            console.error('   ❌ Error updating user balance:', balanceError.message);
+          } else {
+            console.log(`      ✅ User balance updated: KSH ${newBalance} (+KSH ${amountWon})`);
+          }
+        }
+      }
+    }
+
+    console.log(`\n✅ Settlement processing complete for game ${gameId}`);
+  } catch (error) {
+    console.error('❌ Settlement error:', error.message);
+  }
+}
+
 // Helper function to generate default markets for a new game
 function generateDefaultMarkets(gameUUID, homeOdds, drawOdds, awayOdds) {
   const h = homeOdds;
@@ -844,6 +1067,10 @@ router.put('/games/:gameId/score', checkAdmin, async (req, res) => {
     } catch (logError) {
       console.warn('⚠️ Failed to log admin action:', logError.message);
     }
+
+    // 🔥 NEW: Automatically settle bets related to this game
+    console.log(`\n🔥 Triggering automatic bet settlement for game ${existingGame.id}`);
+    await settleBetsForGame(existingGame.id, game);
 
     res.json({ success: true, game });
   } catch (error) {
@@ -1732,21 +1959,73 @@ router.put('/bets/:betId/selections/:selectionId/outcome', checkAdmin, async (re
       console.log(`   - All finished: ${allFinished}`);
       console.log(`   - All won: ${allWon}`);
 
-      // Update bet status accordingly
-      if (newBetStatus !== 'Open') {
-        const { error: betUpdateError } = await supabase
-          .from('bets')
-          .update({ 
-            status: newBetStatus,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', selection.bet_id);
+      // Get the bet to access its data
+      const { data: bet, error: betError } = await supabase
+        .from('bets')
+        .select('*')
+        .eq('id', selection.bet_id)
+        .single();
 
-        if (betUpdateError) {
-          console.warn('⚠️  Could not update bet status:', betUpdateError.message);
-          // Continue anyway - selection was updated
-        } else {
-          console.log(`✅ Bet status automatically updated to: ${newBetStatus}`);
+      if (!bet || betError) {
+        console.error('❌ Error fetching bet:', betError?.message);
+      } else {
+        // Update bet status accordingly
+        if (newBetStatus !== 'Open' && newBetStatus !== bet.status) {
+          const amountWon = newBetStatus === 'Won' ? bet.potential_win : null;
+          
+          const { error: betUpdateError } = await supabase
+            .from('bets')
+            .update({ 
+              status: newBetStatus,
+              amount_won: amountWon,
+              settled_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', selection.bet_id);
+
+          if (betUpdateError) {
+            console.warn('⚠️  Could not update bet status:', betUpdateError.message);
+            // Continue anyway - selection was updated
+          } else {
+            console.log(`✅ Bet status automatically updated to: ${newBetStatus}`);
+
+            // 🔥 NEW: Update user balance if bet won
+            if (newBetStatus === 'Won' && amountWon && bet.user_id) {
+              console.log(`\n💰 [BALANCE UPDATE] Processing winnings for user ID: ${bet.user_id}`);
+              
+              const { data: user, error: userError } = await supabase
+                .from('users')
+                .select('account_balance, total_winnings, phone_number')
+                .eq('id', bet.user_id)
+                .single();
+
+              if (!user || userError) {
+                console.error('   ❌ Error fetching user:', userError?.message);
+              } else {
+                const newBalance = parseFloat(user.account_balance) + parseFloat(amountWon);
+                const newWinnings = (parseFloat(user.total_winnings) || 0) + parseFloat(amountWon);
+
+                const { error: balanceError } = await supabase
+                  .from('users')
+                  .update({
+                    account_balance: newBalance,
+                    total_winnings: newWinnings,
+                    updated_at: new Date().toISOString()
+                  })
+                  .eq('id', bet.user_id);
+
+                if (balanceError) {
+                  console.error('   ❌ Error updating user balance:', balanceError.message);
+                } else {
+                  console.log(`   ✅ User balance updated successfully`);
+                  console.log(`      Phone: ${user.phone_number}`);
+                  console.log(`      Previous balance: KSH ${user.account_balance}`);
+                  console.log(`      New balance: KSH ${newBalance}`);
+                  console.log(`      Winnings added: KSH ${amountWon}`);
+                }
+              }
+            }
+          }
         }
       }
     }
